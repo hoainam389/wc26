@@ -135,7 +135,7 @@
     border-bottom:1px solid var(--line);font-size:14.5px}
   .chem-row:last-child{border-bottom:none}
   .chem-row .lbl{font-weight:700;display:inline-flex;align-items:center;gap:6px}
-  .chem-row .lbl.good{color:#86e6a0} .chem-row .lbl.bad{color:#7fc4ee}
+  .chem-row .lbl.good{color:#86e6a0} .chem-row .lbl.bad{color:#ff8a8a}
   .chem-row .who{font-weight:800;color:var(--txt)}
   .chem-row .pct{font-weight:800}
   .chem-row .pct.good{color:var(--win)} .chem-row .pct.bad{color:var(--lose)}
@@ -720,9 +720,9 @@ function renderChemistry(ch){
   if(!ch){ card.classList.add('hidden'); return; }
   const rows = [
     ['good','🔥','Cặp đồng lòng chuẩn nhất', ch.pair_best],
-    ['bad','🧊','Cặp đồng lòng sai nhiều nhất', ch.pair_worst],
+    ['bad','💀','Cặp đồng lòng sai nhiều nhất', ch.pair_worst],
     ['good','🔥','Bộ ba đồng lòng chuẩn nhất', ch.trio_best],
-    ['bad','🧊','Bộ ba đồng lòng sai nhiều nhất', ch.trio_worst],
+    ['bad','💀','Bộ ba đồng lòng sai nhiều nhất', ch.trio_worst],
   ].filter(([,,,c])=>c);
   if(!rows.length){ card.classList.add('hidden'); return; }
   card.classList.remove('hidden');
