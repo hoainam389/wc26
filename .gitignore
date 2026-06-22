@@ -9,3 +9,7 @@ wc26_data/sessions.json
 
 # Ảnh nguồn migrate dữ liệu lịch sử — không cần trong repo
 history.png
+
+# Ảnh chụp / output tạm khi verify bằng Playwright
+wc26-deployed-*.png
+.playwright-mcp/
