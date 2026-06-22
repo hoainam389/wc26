@@ -1,0 +1,32 @@
+{
+  "nam.nguyen": {
+    "pw_hash": "6990a1052bad0c81439e1f327126481bc13a1d83928062cd3434d3e68f3be1e3",
+    "display_name": "Nam Nguyễn",
+    "is_admin": true
+  },
+  "tien.le": {
+    "pw_hash": "701aab6e4c0434b2ae7cf94bd85d59eef2cc7cb1ef8f7b5e45f3bdd3bc1428ce",
+    "display_name": "Tiến Lê",
+    "is_admin": false
+  },
+  "huy.pham": {
+    "pw_hash": "701aab6e4c0434b2ae7cf94bd85d59eef2cc7cb1ef8f7b5e45f3bdd3bc1428ce",
+    "display_name": "Huy Phạm",
+    "is_admin": false
+  },
+  "nam.le": {
+    "pw_hash": "701aab6e4c0434b2ae7cf94bd85d59eef2cc7cb1ef8f7b5e45f3bdd3bc1428ce",
+    "display_name": "Nam Lê",
+    "is_admin": false
+  },
+  "quan.pham": {
+    "pw_hash": "701aab6e4c0434b2ae7cf94bd85d59eef2cc7cb1ef8f7b5e45f3bdd3bc1428ce",
+    "display_name": "Quân Phạm",
+    "is_admin": false
+  },
+  "thin.hoang": {
+    "pw_hash": "701aab6e4c0434b2ae7cf94bd85d59eef2cc7cb1ef8f7b5e45f3bdd3bc1428ce",
+    "display_name": "Thìn Hoàng",
+    "is_admin": false
+  }
+}

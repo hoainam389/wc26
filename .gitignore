@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# Runtime login sessions — never commit
+wc26_data/sessions.json
+
+# Ảnh nguồn migrate dữ liệu lịch sử — không cần trong repo
+history.png

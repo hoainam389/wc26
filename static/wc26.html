@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚽</text></svg>">
+<title>WC26 — Vote &amp; Thống kê</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0c1118; --panel:#141c27; --panel2:#1b2533; --line:#26323f;
+    --txt:#e7eef6; --mut:#8aa0b6; --acc:#22c55e; --acc2:#0ea5e9;
+    --gold:#f5b301; --red:#ef4444; --win:#22c55e; --lose:#ef4444;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Be Vietnam Pro',system-ui,Arial,sans-serif;background:
+    radial-gradient(1200px 600px at 50% -10%,#16314a 0%,var(--bg) 55%);
+    color:var(--txt);min-height:100vh;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:840px;margin:0 auto;padding:16px 14px 60px}
+  a{color:var(--acc2);text-decoration:none}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:10px}
+  input,select{font-family:inherit;background:var(--panel2);border:1px solid var(--line);
+    color:var(--txt);border-radius:10px;padding:10px 12px;font-size:15px;width:100%}
+  input:focus,select:focus{outline:none;border-color:var(--acc2)}
+  .muted{color:var(--mut)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;margin-bottom:14px}
+  h1,h2,h3{font-weight:800}
+  .sec-title{font-size:13px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--mut);margin:22px 4px 10px;font-weight:700}
+
+  /* ── Header ── */
+  .top{display:flex;align-items:center;gap:12px;padding:10px 4px 18px}
+  .logo{font-size:26px;font-weight:800;letter-spacing:-.5px}
+  .logo .ball{color:var(--acc)}
+  .top .who{margin-left:auto;text-align:right;font-size:13px;line-height:1.3}
+  .top .who b{font-size:14px}
+  .btn{background:var(--acc);color:#04210f;font-weight:700;padding:9px 14px;font-size:14px}
+  .btn.sec{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+  .btn.ghost{background:transparent;color:var(--mut);border:1px solid var(--line);padding:7px 12px}
+  .btn.sm{padding:6px 10px;font-size:13px}
+  .btn.danger{background:transparent;color:var(--red);border:1px solid #4a2230}
+
+  /* ── Login ── */
+  #login{max-width:380px;margin:9vh auto 0}
+  #login .card{padding:26px}
+  #login h2{font-size:22px;margin-bottom:4px}
+  #login p{color:var(--mut);font-size:14px;margin-bottom:18px}
+  #login label{display:block;font-size:13px;color:var(--mut);margin:12px 0 6px}
+  #login .btn{width:100%;margin-top:20px;padding:12px;font-size:16px}
+  .err{color:var(--red);font-size:13px;margin-top:12px;min-height:16px}
+
+  /* ── Date bar ── */
+  .datebar{display:flex;gap:10px;align-items:center;margin-bottom:6px}
+  .datebar select{width:auto;flex:1}
+
+  /* ── Match card ── */
+  .match{padding:12px 12px 10px}
+  .match .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+  .chip{font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;
+    background:var(--panel2);border:1px solid var(--line);color:var(--mut)}
+  .chip.keo{background:#1d2b1f;border-color:#2f5135;color:#86e6a0}
+  .chip.ou{background:#1a2533;border-color:#2a4055;color:#7fc4ee}
+  .chip.tm{background:#101a26;border-color:#2a3a4d;color:#9fb6cc;font-variant-numeric:tabular-nums}
+  .vs{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:stretch}
+  .pick{background:var(--panel2);border:2px solid var(--line);border-radius:12px;
+    padding:10px 8px;text-align:center;transition:.12s;font-weight:700;font-size:16px;
+    display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;min-height:56px}
+  .pick:hover{border-color:var(--mut)}
+  .pick.sel,.pick.sel.under{border-color:var(--acc);background:#13301d;box-shadow:0 0 0 1px var(--acc) inset}
+  .pick.dim{opacity:.4;filter:grayscale(.7);border-color:var(--line);background:var(--panel2)}
+  .pick.dim:hover{opacity:.72;filter:grayscale(.25)}
+  .pick.dim .hc{color:var(--mut)}
+  .pick .hc{font-size:12px;font-weight:600;color:var(--mut)}
+  .pick.winner{outline:2px solid var(--gold)}
+  .pick{position:relative}
+  .pick .vmark{position:absolute;top:6px;right:8px;width:20px;height:20px;border-radius:50%;
+    background:var(--acc);color:#04210f;font-size:12px;font-weight:800;display:flex;
+    align-items:center;justify-content:center;animation:pop .35s cubic-bezier(.2,1.4,.4,1)}
+  .pick.flash{animation:flashpulse .5s ease}
+  @keyframes pop{0%{transform:scale(0)}100%{transform:scale(1)}}
+  @keyframes flashpulse{0%{transform:scale(1)}35%{transform:scale(1.05)}
+    100%{transform:scale(1)}}
+  .pick.flash.sel,.pick.under.flash.sel{box-shadow:0 0 0 1px var(--acc) inset,0 0 22px -2px var(--acc)}
+  /* voter status (who voted, pick hidden until full) */
+  .voter-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .av{font-size:12px;padding:4px 9px;border-radius:999px;border:1px solid var(--line);
+    background:var(--panel2);transition:.15s;display:inline-flex;align-items:center}
+  .av.done{color:var(--txt);border-color:var(--line);font-weight:600}
+  .av.wait{color:var(--mut);opacity:.45}
+  .av.wait .udot{opacity:.45}
+  /* names inside team cards */
+  .pick .tn{font-size:16px;font-weight:700;line-height:1.1}
+  .pickers{display:grid;grid-template-columns:repeat(2,auto);gap:5px 6px;justify-content:center;margin-top:8px}
+  .pk{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:#0c1420;
+    border:1px solid var(--line);display:inline-flex;align-items:center}
+  /* waiting result entry */
+  .wresult{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+  .wq{width:84px}
+  .wq.sc{width:54px;text-align:center}
+  .wd{color:var(--mut)}
+  .wait-note{margin-top:10px;font-size:13px;color:var(--gold);font-weight:600}
+  .save-tag{margin-left:8px;font-weight:700;font-size:12px;transition:opacity .5s}
+  .save-tag.saving{color:var(--acc2)}
+  .save-tag.ok{color:var(--acc)}
+  .save-tag.fade{opacity:0}
+  .midvs{display:flex;align-items:center;justify-content:center;color:var(--mut);
+    font-weight:700;font-size:13px;min-width:30px}
+  .locked-note{font-size:12px;color:var(--mut);margin-top:10px;display:flex;
+    gap:8px;align-items:center;flex-wrap:wrap}
+  .votes-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .vchip{font-size:12px;padding:4px 9px;border-radius:8px;background:var(--panel2);
+    border:1px solid var(--line);display:inline-flex;align-items:center;color:var(--txt)}
+  .vchip b{margin-left:3px}
+  .result-line{margin-top:10px;font-size:13px}
+  .result-line b{color:var(--gold)}
+
+  /* ── Standings ── */
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:9px 8px;text-align:center;border-bottom:1px solid var(--line)}
+  th{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+  td.name{text-align:left;font-weight:600}
+  .udot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle}
+  .pos{font-weight:800;color:var(--mut);width:26px}
+  .pts{font-weight:800}
+  .pts.up{color:var(--win)} .pts.dn{color:var(--lose)}
+  .rank1 td{background:linear-gradient(90deg,#2a230a,transparent)}
+  .chartbox{position:relative;height:280px}
+  .grid2{display:grid;grid-template-columns:1fr;gap:14px}
+
+  /* ── Admin ── */
+  .admin-head{display:flex;align-items:center;cursor:pointer;gap:10px}
+  .admin-head .tag{background:var(--gold);color:#1a1400;font-weight:800;font-size:11px;
+    padding:3px 8px;border-radius:6px}
+  .admin-body{margin-top:14px}
+  .formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .formgrid label{font-size:12px;color:var(--mut);display:block;margin-bottom:5px}
+  .full{grid-column:1/-1}
+  .mlist{margin-top:14px}
+  .mrow{display:flex;gap:8px;align-items:center;padding:9px 0;border-top:1px solid var(--line);
+    flex-wrap:wrap;font-size:14px}
+  .mrow .nm{flex:1;min-width:140px}
+  .mrow .sc{width:54px;text-align:center;padding:6px}
+  .hidden{display:none!important}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:var(--panel2);border:1px solid var(--acc);color:var(--txt);
+    padding:11px 18px;border-radius:10px;font-size:14px;z-index:50;opacity:0;
+    transition:.25s;pointer-events:none}
+  .toast.show{opacity:1}
+  .empty{text-align:center;color:var(--mut);padding:30px 10px;font-size:14px}
+
+  /* ── History table ── */
+  .htable-wrap{padding:6px;overflow-x:auto}
+  .htable{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
+  .htable th,.htable td{padding:7px 9px;text-align:center;border-bottom:1px solid var(--line)}
+  .htable th{position:sticky;top:0;background:var(--panel);color:var(--mut);font-size:11px;
+    text-transform:uppercase;letter-spacing:.04em;font-weight:700;z-index:1}
+  .htable th.l,.htable td.l{text-align:left}
+  .htable td.dt{color:var(--mut);font-size:12px}
+  .htable td.mt{font-weight:600}
+  .htable .tm.win{color:var(--win);font-weight:700}
+  .htable .tm.lose{color:var(--mut)}
+  .htable .hsc{color:var(--gold);margin:0 7px;font-weight:800;vertical-align:middle;display:inline-block}
+  .htable .tmw{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;line-height:1.12}
+  .htable .hcsub{font-size:11px;font-weight:600;color:var(--mut);margin-top:1px}
+  /* ô Trận = lưới 3 cột: tỷ số luôn ở giữa ô → thẳng hàng dọc mọi dòng */
+  .htable .mgrid{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;column-gap:8px;min-width:230px}
+  .htable .mgrid .t1{justify-self:end;align-items:flex-end;text-align:right}
+  .htable .mgrid .t2{justify-self:start;align-items:flex-start;text-align:left}
+  .htable .mgrid .hsc{justify-self:center;margin:0}
+  .scope-btn.on{border-color:var(--acc);color:var(--acc);background:#13301d}
+  .scope-btn:disabled{opacity:.45;cursor:default}
+  .htable tbody tr:hover{background:var(--panel2)}
+  td.pc{min-width:84px}
+  td.pc .vt{display:block;font-size:11px;line-height:1.25}
+  td.pc .mn{display:block;font-weight:800;line-height:1.25}
+  .vt.g,.mn.g{color:var(--win)} .vt.r,.mn.r{color:var(--lose)}
+  .vt{color:var(--mut)} .mn{color:var(--mut)}
+
+  /* ── Thẻ trận chưa có kèo / preview ngày mai ── */
+  .pick.nokeo{border-style:dashed;opacity:.9;cursor:default;background:var(--panel2)}
+  .pick.nokeo:hover{border-color:var(--line)}
+  .nokeo-note{margin-top:12px;text-align:center;font-size:13.5px;font-weight:600;
+    border-radius:12px;padding:11px 12px;background:var(--panel2);border:1px dashed var(--line);color:var(--mut)}
+  .nokeo-note.ready{border-color:#2a4055;background:#152130;color:#7fc4ee}
+
+  /* ── Nhập kèo theo lịch (admin) ── */
+  .fxrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:9px 0;
+    border-top:1px solid var(--line);font-size:14px}
+  .fxrow .fxpair{flex:1;min-width:160px;font-weight:600}
+  .fxrow select{width:auto}
+  .fxrow .fxnum{width:84px}
+  .fxrow.done{opacity:.6}
+
+  @media(max-width:560px){
+    .formgrid{grid-template-columns:1fr}
+    /* hàng bộ lọc lịch sử: cho xuống dòng, nút scope chiếm trọn 1 hàng */
+    .datebar{flex-wrap:wrap}
+    #hist-scope{flex:1 0 100%;text-align:center}
+    /* bảng xếp hạng: bỏ cột "Hòa" (ai cũng =1) + thu gọn đệm cho vừa màn */
+    #standings th,#standings td{padding:8px 5px}
+    #standings th:nth-child(6),#standings td:nth-child(6){display:none}
+    /* Lịch sử (scroll ngang): cắt phần thừa nhưng GIỮ tỷ số thẳng hàng (căn giữa).
+       Tràn sát 2 mép màn, bỏ min-width/đệm dư, gap nhỏ → bảng 926→806px.
+       KHÔNG đổi logic căn giữa: tỷ số vẫn lấy làm tâm, đội1 phải / đội2 trái. */
+    #history .htable-wrap{margin-left:-14px;margin-right:-14px;border-radius:0;border-left:0;border-right:0;padding:0}
+    #history .htable th,#history .htable td{padding:7px 4px}
+    #history .htable .mgrid{min-width:0;column-gap:5px}
+    #history td.pc{min-width:0}
+    #history .htable td.dt{padding-left:6px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ════ LOGIN ════ -->
+<div id="login" class="hidden">
+  <div class="logo" style="text-align:center;margin-bottom:14px">WC<span class="ball">26</span> ⚽</div>
+  <div class="card">
+    <h2>Đăng nhập</h2>
+    <p>Vote kèo &amp; theo dõi thống kê World Cup 2026</p>
+    <label>Tài khoản</label>
+    <input id="lg-user" autocomplete="username" placeholder="vd: quan, nam, vuong...">
+    <label>Mật khẩu</label>
+    <input id="lg-pass" type="password" autocomplete="current-password" placeholder="••••••••">
+    <button class="btn" onclick="doLogin()">Vào</button>
+    <div class="err" id="lg-err"></div>
+  </div>
+</div>
+
+<!-- ════ APP ════ -->
+<div id="app" class="wrap hidden">
+  <div class="top">
+    <div class="logo">WC<span class="ball">26</span> ⚽</div>
+    <div class="who">
+      <b id="me-name"></b><br>
+      <span class="muted" id="me-role"></span>
+      &nbsp;·&nbsp;<a href="#" onclick="doLogout();return false">Thoát</a>
+    </div>
+  </div>
+
+  <!-- Admin panel (nam.nguyen) -->
+  <div class="card hidden" id="admin">
+    <div class="admin-head" onclick="toggleAdmin()">
+      <span class="tag">QUẢN LÝ</span>
+      <b>Nhập trận &amp; kết quả</b>
+      <span class="muted" style="margin-left:auto" id="admin-caret">▸</span>
+    </div>
+    <div class="admin-body hidden" id="admin-body">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label class="muted" style="font-size:13px">Ngày làm việc:</label>
+        <input id="m-date" type="date" style="flex:1;min-width:150px">
+        <button type="button" class="btn ghost sm" onclick="setMatchDate(0)">Hôm nay</button>
+        <button type="button" class="btn ghost sm" onclick="setMatchDate(1)">Ngày mai</button>
+      </div>
+
+      <div style="margin-top:16px">
+        <b>📅 Nhập kèo theo lịch thi đấu</b>
+        <div class="muted" style="font-size:12px;margin:4px 0 2px">Theo <b>ngày trên</b>. Chỉ cần chọn đội chấp + mức chấp (+ T/X) rồi bấm Tạo. Tỷ số nhập SAU ở phần "Chờ kết quả".</div>
+        <div id="fx-entry"></div>
+      </div>
+
+      <div class="mlist" id="admin-mlist"></div>
+    </div>
+  </div>
+
+  <!-- Vote section -->
+  <div class="sec-title">⚽ Vote — chọn đội thắng kèo</div>
+  <div class="datebar">
+    <select id="date-sel" onchange="loadMatches()"></select>
+    <button class="btn ghost sm" onclick="refreshAll()">↻ Tải lại</button>
+  </div>
+  <div id="matches"></div>
+
+  <!-- Waiting for result -->
+  <div id="waiting-sec" class="hidden">
+    <div class="sec-title">⏳ Đang chờ kết quả</div>
+    <div id="waiting"></div>
+  </div>
+
+  <!-- History section -->
+  <div class="sec-title">📜 Lịch sử trận đã kết thúc</div>
+  <div class="datebar" style="margin-bottom:12px">
+    <button class="btn ghost sm scope-btn" id="hist-scope" onclick="toggleScope()">🔎 Đội đá hôm nay</button>
+    <select id="hist-date" onchange="renderHistory()"><option value="">Tất cả ngày</option></select>
+    <select id="hist-user" onchange="renderHistory()"><option value="">Tất cả người</option></select>
+  </div>
+  <div id="history"></div>
+
+  <!-- Overview section -->
+  <div class="sec-title">📊 Bảng tổng</div>
+  <div class="card">
+    <h3 style="margin-bottom:12px">Bảng xếp hạng</h3>
+    <div style="overflow-x:auto"><table id="standings"></table></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="margin-bottom:10px">Tiền nộp tích lũy</h3>
+      <div class="chartbox"><canvas id="ch-points"></canvas></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:10px">Tỷ lệ đúng (%)</h3>
+      <div class="chartbox"><canvas id="ch-acc"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let ME = null, USERS = {}, CUR_MATCHES = [], MATCH_USERS = {};
+let chPoints = null, chAcc = null;
+
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);}
+function todayG7(){ return new Date(Date.now()+7*3600*1000).toISOString().slice(0,10); }
+function ddmm(d){ return d ? d.slice(8,10)+'/'+d.slice(5,7) : ''; }
+// Cụm đang mở vote (rule 18:00→18:00): trước 18:00 GMT+7 là cụm "hôm nay";
+// từ 18:00 trở đi cụm hôm nay khóa → nhảy sang cụm đêm kế tiếp để vote luôn.
+function votableDate(){
+  const base = new Date(Date.now()+7*3600*1000);
+  if(base.getUTCHours()>=18) base.setUTCDate(base.getUTCDate()+1);   // 18:00 = chốt cụm cũ, mở cụm mới
+  return base.toISOString().slice(0,10);
+}
+
+// Lịch vòng bảng WC2026 — nguồn FIFA, đã đối chiếu khớp data app.
+// Mỗi cặp: [đội1, đội2, ko] với ko = giờ kickoff VN (GMT+7) dạng ISO 'YYYY-MM-DDTHH:MM'.
+// LƯU Ý: key ngày = "match-day" của FIFA (giờ Mỹ); ko là giờ VN nên ngày trong ko
+// thường là hôm sau (vd 19/6 đá rạng sáng 20/6 giờ VN). Dùng để: hiện cặp đấu khu Vote +
+// nhập kèo nhanh ở admin + tự gắn giờ cho trận mới.
+const FIXTURES = {
+  "2026-06-19": [["Mỹ","Úc","2026-06-20T02:00"],["Scotland","Ma-rốc","2026-06-20T05:00"],["Brazil","Haiti","2026-06-20T07:30"],["Thổ Nhĩ Kỳ","Paraguay","2026-06-20T10:00"]],
+  "2026-06-20": [["Hà Lan","Thụy Điển","2026-06-21T00:00"],["Đức","Bờ Biển Ngà","2026-06-21T03:00"],["Ecuador","Curaçao","2026-06-21T07:00"],["Tunisia","Nhật Bản","2026-06-21T11:00"]],
+  "2026-06-21": [["Tây Ban Nha","Ả Rập Xê Út","2026-06-21T23:00"],["Bỉ","Iran","2026-06-22T02:00"],["Uruguay","Cabo Verde","2026-06-22T05:00"],["New Zealand","Ai Cập","2026-06-22T08:00"]],
+  "2026-06-22": [["Argentina","Áo","2026-06-23T00:00"],["Pháp","Iraq","2026-06-23T04:00"],["Na Uy","Senegal","2026-06-23T07:00"],["Jordan","Algeria","2026-06-23T10:00"]],
+  "2026-06-23": [["Bồ Đào Nha","Uzbekistan","2026-06-24T00:00"],["Anh","Ghana","2026-06-24T03:00"],["Panama","Croatia","2026-06-24T06:00"],["Colombia","Congo","2026-06-24T09:00"]],
+  "2026-06-24": [["Thụy Sĩ","Canada","2026-06-25T02:00"],["Bosnia","Qatar","2026-06-25T02:00"],["Scotland","Brazil","2026-06-25T05:00"],["Ma-rốc","Haiti","2026-06-25T05:00"],["Séc","Mexico","2026-06-25T08:00"],["Nam Phi","Hàn Quốc","2026-06-25T08:00"]],
+  "2026-06-25": [["Ecuador","Đức","2026-06-26T03:00"],["Curaçao","Bờ Biển Ngà","2026-06-26T03:00"],["Nhật Bản","Thụy Điển","2026-06-26T06:00"],["Tunisia","Hà Lan","2026-06-26T06:00"],["Thổ Nhĩ Kỳ","Mỹ","2026-06-26T09:00"],["Paraguay","Úc","2026-06-26T09:00"]],
+  "2026-06-26": [["Na Uy","Pháp","2026-06-27T02:00"],["Senegal","Iraq","2026-06-27T02:00"],["Cabo Verde","Ả Rập Xê Út","2026-06-27T07:00"],["Uruguay","Tây Ban Nha","2026-06-27T07:00"],["Ai Cập","Iran","2026-06-27T10:00"],["New Zealand","Bỉ","2026-06-27T10:00"]],
+  "2026-06-27": [["Panama","Anh","2026-06-28T04:00"],["Croatia","Ghana","2026-06-28T04:00"],["Colombia","Bồ Đào Nha","2026-06-28T06:30"],["Congo","Uzbekistan","2026-06-28T06:30"],["Algeria","Áo","2026-06-28T09:00"],["Jordan","Argentina","2026-06-28T09:00"]]
+};
+const _pairKey = (a,b)=>[a,b].sort().join('|');
+// ── Giờ kickoff VN ──
+function koTime(m){ return (m && m.ko) ? m.ko.slice(11,16) : ''; }   // 'HH:MM'
+// Chip giờ: hiện 'HH:MM'; nếu ngày kickoff VN khác match-day thì kèm ngày VN (rạng sáng hôm sau).
+function koChip(m){
+  if(!m || !m.ko) return '';
+  const t = m.ko.slice(11,16), kd = m.ko.slice(0,10);
+  const dnote = (m.date && kd!==m.date) ? ` · ${ddmm(kd)}` : '';
+  return `<span class="chip tm">🕐 ${t}${dnote}</span>`;
+}
+// Lấy ko từ FIXTURES cho 1 cặp đội (khi trận chưa được tạo)
+function fixtureKo(date,a,b){
+  const fx = FIXTURES[date]||[];
+  const hit = fx.find(([x,y])=>_pairKey(x,y)===_pairKey(a,b));
+  return hit ? (hit[2]||null) : null;
+}
+const _koSort = m => (m && m.ko) || ((m&&m.date||'')+'T99:99');
+
+async function api(path, opt){
+  const r = await fetch('/api/wc26/'+path, Object.assign({headers:{'Content-Type':'application/json'}}, opt||{}));
+  if(r.status===401){ showLogin(); throw new Error('unauth'); }
+  if(!r.ok){ let d={}; try{d=await r.json()}catch(e){}; throw new Error(d.detail||d.error||('Lỗi '+r.status)); }
+  return r.json();
+}
+
+/* ── Auth ── */
+function showLogin(){ $('login').classList.remove('hidden'); $('app').classList.add('hidden'); }
+function showApp(){ $('login').classList.add('hidden'); $('app').classList.remove('hidden'); }
+
+async function doLogin(){
+  $('lg-err').textContent='';
+  try{
+    await api('login',{method:'POST',body:JSON.stringify({
+      username:$('lg-user').value, password:$('lg-pass').value})});
+    await boot();
+  }catch(e){ $('lg-err').textContent = e.message; }
+}
+async function doLogout(){ try{await api('logout',{method:'POST'})}catch(e){}; showLogin(); }
+
+$('lg-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+
+/* ── Boot ── */
+async function boot(){
+  try{ ME = await api('me'); }catch(e){ showLogin(); return; }
+  showApp();
+  $('me-name').textContent = ME.display_name;
+  $('me-role').textContent = ME.is_admin ? 'Quản trị' : 'Người chơi';
+  if(ME.is_admin){ $('admin').classList.remove('hidden'); setMatchDate(0); }
+  await loadDates();
+  await loadMatches();
+  await loadOverview();
+}
+
+async function refreshAll(){ await loadMatches(); await loadOverview(); if(ME.is_admin) loadAdminList(); }
+
+/* ── Dates ── */
+async function loadDates(){
+  const {dates} = await api('dates');
+  const vd = votableDate();
+  const set = new Set(dates);
+  Object.keys(FIXTURES).forEach(d=>set.add(d));   // luôn có sẵn các ngày vòng bảng
+  set.add(todayG7()); set.add(vd);
+  const arr = [...set].sort();                      // tăng dần theo ngày
+  const sel = $('date-sel');
+  const keep = sel.value;
+  sel.innerHTML = arr.map(d=>`<option value="${d}">${ddmm(d)}</option>`).join('');
+  sel.value = (keep && arr.includes(keep)) ? keep : vd;   // mặc định = cụm đang mở vote
+}
+
+/* ── Matches / vote ── */
+async function loadMatches(){
+  const date = $('date-sel').value;
+  if(!date){ $('matches').innerHTML=''; return; }
+  const data = await api('matches?date='+encodeURIComponent(date));
+  CUR_MATCHES = data.matches;
+  MATCH_USERS = data.users || MATCH_USERS;
+  setColors(MATCH_USERS);
+  renderMatchesHtml(CUR_MATCHES);
+}
+function pickerDot(u){ return `<span class="udot" style="background:${USER_COLOR[u]||'#8aa0b6'}"></span>`; }
+function renderMatchesHtml(matches){
+  const box = $('matches');
+  const date = $('date-sel').value;
+  const vd = votableDate();   // cụm đang mở vote (đã tính mốc 18:00)
+  const allUsers = Object.keys(MATCH_USERS||{});
+  const open = (matches||[]).filter(m=>!m.locked && m.score1==null);   // có kèo, chưa khóa, chưa có KQ
+  const created = new Set((matches||[]).map(m=>_pairKey(m.team1,m.team2)));
+  const fixtures = FIXTURES[date] || [];
+  const entries = [];   // {ko, html} — gộp trận đã tạo + cặp theo lịch, rồi xếp theo giờ
+
+  // A) Trận đã có kèo: cụm đang mở → vote được; cụm sau → chỉ xem (mở vote ở mốc 18:00 hôm trước)
+  for(const m of open){
+    entries.push({ko:_koSort(m), html:(date===vd) ? voteCardHtml(m, allUsers) : previewCardHtml(m)});
+  }
+  // B) Cặp đấu theo lịch nhưng admin CHƯA nhập kèo (cụm đang mở trở đi)
+  if(date>=vd){
+    for(const [a,b,ko] of fixtures){
+      if(!created.has(_pairKey(a,b))) entries.push({ko: ko||(date+'T99:99'), html:nokeoCardHtml(a,b,date,ko)});
+    }
+  }
+  entries.sort((x,y)=> x.ko<y.ko ? -1 : (x.ko>y.ko ? 1 : 0));   // sớm → muộn theo giờ VN
+  const html = entries.map(e=>e.html).join('');
+  if(html){ box.innerHTML = html; return; }
+
+  // C) Không có thẻ nào → thông báo theo ngữ cảnh
+  let msg;
+  if(date<vd) msg = 'Cụm này đã khóa vote (qua 18:00) — trận chờ ở "Chờ kết quả", kết quả ở "Lịch sử" bên dưới.';
+  else if(date>vd) msg = 'Chưa tới lượt vote — cụm này mở khi cụm trước khóa (18:00 hôm trước). Admin có thể nhập kèo trước trong phần Quản lý.';
+  else msg = 'Cụm đang mở chưa có trận trong lịch.';
+  box.innerHTML = '<div class="card empty">'+msg+'</div>';
+}
+// Thẻ vote bình thường (hôm nay, đã có kèo). Vote hiện ngay cho mọi người.
+function voteCardHtml(m, allUsers){
+  const favIs1 = m.hcap_side===1;
+  const hc1 = favIs1 ? '−'+m.hcap : '+'+m.hcap;
+  const hc2 = favIs1 ? '+'+m.hcap : '−'+m.hcap;
+  const sel1 = m.my_vote===1, sel2 = m.my_vote===2;
+  let chips = `<span class="chip keo">Kèo: ${favIs1?m.team1:m.team2} −${m.hcap}</span>`;
+  if(m.ou_line!=null && m.ou_line!=='') chips += `<span class="chip ou">T/X ${m.ou_line}</span>`;
+  if(m.ko) chips += `<span style="margin-left:auto">${koChip(m)}</span>`;
+  const pickFor = side => allUsers.filter(u=>m.votes[u]&&m.votes[u].pick===side);
+  const pickers = side => `<div class="pickers">`+pickFor(side)
+      .map(u=>`<span class="pk">${pickerDot(u)}${MATCH_USERS[u]}</span>`).join('')+`</div>`;
+  const noVoters = allUsers.filter(u=>!(m.votes[u]&&m.votes[u].pick));
+  const waitRow = noVoters.length ? '<div class="voter-row">'+noVoters.map(u=>
+      `<span class="av wait">${pickerDot(u)}${MATCH_USERS[u]}</span>`).join('')+'</div>' : '';
+  const note = `<div class="locked-note">🕓 Mở vote đến 18:00 GMT+7 · <b>${m.vote_count}/${allUsers.length}</b> đã vote · ⚠️ không vote = phạt 50</div>`;
+  return `<div class="card match" data-mid="${m.id}">
+    <div class="meta">${chips}</div>
+    <div class="vs">
+      <div class="pick ${sel1?'sel':''}" data-pick="1" onclick="vote('${m.id}',1)">
+        <span class="tn">${m.team1}</span><span class="hc">${hc1}</span>${sel1?'<span class="vmark">✓</span>':''}${pickers(1)}</div>
+      <div class="midvs">VS</div>
+      <div class="pick ${sel2?'sel':''}" data-pick="2" onclick="vote('${m.id}',2)">
+        <span class="tn">${m.team2}</span><span class="hc">${hc2}</span>${sel2?'<span class="vmark">✓</span>':''}${pickers(2)}</div>
+    </div>
+    ${note}
+    ${waitRow}
+  </div>`;
+}
+// Thẻ trận tương lai đã có kèo — chưa cho vote (mở lúc 0h)
+function previewCardHtml(m){
+  const favIs1 = m.hcap_side===1;
+  const hc1 = favIs1 ? '−'+m.hcap : '+'+m.hcap;
+  const hc2 = favIs1 ? '+'+m.hcap : '−'+m.hcap;
+  let chips = `<span class="chip keo">Kèo: ${favIs1?m.team1:m.team2} −${m.hcap}</span>`;
+  if(m.ou_line!=null && m.ou_line!=='') chips += `<span class="chip ou">T/X ${m.ou_line}</span>`;
+  const tail = m.ko ? koChip(m) : `<span class="chip">${ddmm(m.date)}</span>`;
+  return `<div class="card match">
+    <div class="meta">${chips}<span style="margin-left:auto">${tail}</span></div>
+    <div class="vs">
+      <div class="pick nokeo"><span class="tn">${m.team1}</span><span class="hc">${hc1}</span></div>
+      <div class="midvs">VS</div>
+      <div class="pick nokeo"><span class="tn">${m.team2}</span><span class="hc">${hc2}</span></div>
+    </div>
+    <div class="nokeo-note ready">🔒 Đã có kèo · mở vote khi cụm trước khóa (18:00)</div>
+  </div>`;
+}
+// Thẻ cặp đấu theo lịch nhưng admin chưa nhập kèo
+function nokeoCardHtml(a,b,date,ko){
+  const tail = ko ? koChip({ko, date}) : `<span class="chip">${ddmm(date)}</span>`;
+  return `<div class="card match">
+    <div class="meta"><span style="margin-left:auto">${tail}</span></div>
+    <div class="vs">
+      <div class="pick nokeo"><span class="tn">${a}</span></div>
+      <div class="midvs">VS</div>
+      <div class="pick nokeo"><span class="tn">${b}</span></div>
+    </div>
+    <div class="nokeo-note">⏳ Admin chưa nhập kèo</div>
+  </div>`;
+}
+function fmtNum(n){ return Number(n).toLocaleString('vi-VN'); }
+
+/* ── Waiting (đã khóa vote, chờ kết quả) ── */
+function renderWaiting(waiting){
+  const sec=$('waiting-sec'), box=$('waiting');
+  if(!waiting.length){ sec.classList.add('hidden'); box.innerHTML=''; return; }
+  sec.classList.remove('hidden');
+  const allUsers=Object.keys(HIST_NAMES);
+  box.innerHTML = waiting.map(m=>{
+    const favIs1=m.hcap_side===1;
+    const pickers = side => `<div class="pickers">`+allUsers.filter(u=>m.picks[u]===side)
+        .map(u=>`<span class="pk">${pickerDot(u)}${HIST_NAMES[u]}</span>`).join('')+`</div>`;
+    const noVoters = allUsers.filter(u=>!m.picks[u]);
+    const missRow = noVoters.length ? `<div class="voter-row">`+noVoters.map(u=>
+        `<span class="av wait">${pickerDot(u)}${HIST_NAMES[u]} ✗</span>`).join('')+`</div>` : '';
+    const entry = (ME && ME.is_admin)
+      ? `<div class="wresult">
+          <input class="wq sc" id="w1-${m.id}" type="number" placeholder="-">
+          <span class="wd">-</span>
+          <input class="wq sc" id="w2-${m.id}" type="number" placeholder="-">
+          <button class="btn sm" onclick="saveResultFull('${m.id}')">Lưu KQ</button>
+        </div>`
+      : `<div class="wait-note">⏳ Chờ admin nhập kết quả</div>`;
+    return `<div class="card match">
+      <div class="meta"><span class="chip keo">Kèo: ${favIs1?m.team1:m.team2} −${m.hcap}</span>
+        ${m.ou_line!=null?`<span class="chip ou">T/X ${m.ou_line}</span>`:''}
+        <span style="margin-left:auto">${m.ko ? koChip(m) : `<span class="chip">${ddmm(m.date)}</span>`}</span></div>
+      <div class="vs">
+        <div class="pick"><span class="tn">${m.team1}</span><span class="hc">${favIs1?'−':'+'}${m.hcap}</span>${pickers(1)}</div>
+        <div class="midvs">VS</div>
+        <div class="pick"><span class="tn">${m.team2}</span><span class="hc">${favIs1?'+':'−'}${m.hcap}</span>${pickers(2)}</div>
+      </div>
+      ${missRow}
+      ${entry}
+    </div>`;
+  }).join('');
+}
+function saveResultFull(id){
+  const s1=$('w1-'+id).value, s2=$('w2-'+id).value;
+  if(s1===''||s2===''){ toast('Cần nhập tỷ số'); return; }
+  api('result',{method:'POST',body:JSON.stringify({id,score1:s1,score2:s2})})
+    .then(()=>{ toast('Đã lưu kết quả ✓'); loadOverview(); loadMatches(); })
+    .catch(e=>toast(e.message));
+}
+
+function vote(mid, pick){
+  const m = CUR_MATCHES.find(x=>x.id===mid);
+  if(!m || m.locked) return;
+  if(m.date && m.date!==votableDate()){ toast('Chưa tới lượt vote cụm này'); return; }
+  const prev = m.my_vote, had = !!prev;
+  if(prev===pick){ flashPick(mid,pick); return; }   // re-click same → just pulse
+  // ── optimistic: update model + UI instantly (no waiting for network) ──
+  m.my_vote = pick;
+  if(!m.votes) m.votes = {};
+  m.votes[ME.username] = {name: ME.display_name, pick};   // hiện vote mình ngay
+  if(!had){ m.vote_count = (m.vote_count||0)+1; if(!m.voters) m.voters=[]; if(!m.voters.includes(ME.username)) m.voters.push(ME.username); }
+  renderMatchesHtml(CUR_MATCHES);
+  flashPick(mid, pick);
+  markSaving(mid, true);
+  // ── persist in background ──
+  (async()=>{
+    try{
+      await api('vote',{method:'POST',body:JSON.stringify({match_id:mid,pick})});
+      markSaving(mid, false, true);
+    }catch(e){
+      m.my_vote = prev;
+      if(had){ m.votes[ME.username] = {name: ME.display_name, pick: prev}; }
+      else { delete m.votes[ME.username]; m.vote_count--; m.voters = m.voters.filter(x=>x!==ME.username); }
+      renderMatchesHtml(CUR_MATCHES); toast('Lỗi: '+e.message);
+    }
+  })();
+}
+function flashPick(mid, pick){
+  const p = document.querySelector(`.match[data-mid="${mid}"] .pick[data-pick="${pick}"]`);
+  if(p){ p.classList.remove('flash'); void p.offsetWidth; p.classList.add('flash'); }
+}
+function markSaving(mid, on, done){
+  const card = document.querySelector(`.match[data-mid="${mid}"]`);
+  if(!card) return;
+  let tag = card.querySelector('.save-tag');
+  if(!tag){ tag = document.createElement('span'); tag.className='save-tag'; card.querySelector('.locked-note')?.appendChild(tag); }
+  if(on){ tag.className='save-tag saving'; tag.textContent='⟳ đang ghi nhận…'; }
+  else if(done){ tag.className='save-tag ok'; tag.textContent='✓ đã ghi nhận'; setTimeout(()=>{tag.classList.add('fade')},900); }
+}
+
+/* ── Overview ── */
+// 6 màu cố định cho 6 người — KHÔNG dùng xanh lá/đỏ (dành cho thắng/thua & tiền +/−)
+const PERSON_COLORS = ['#0ea5e9','#f5b301','#a855f7','#ec4899','#14b8a6','#f97316'];
+let HIST = [], HIST_NAMES = {}, USER_COLOR = {}, TODAY_TEAMS = new Set(), HIST_SCOPE = 'today';
+function setColors(map){
+  const ks = Object.keys(map||{}); if(!ks.length) return;
+  USER_COLOR = {};
+  ks.forEach((u,i)=>{ USER_COLOR[u] = PERSON_COLORS[i%PERSON_COLORS.length]; });
+}
+async function loadOverview(){
+  const ov = await api('overview');
+  HIST_NAMES = ov.chart.names || {};
+  setColors(HIST_NAMES);
+  renderStandings(ov.standings);
+  renderCharts(ov.chart, ov.standings);
+  HIST = ov.matches || [];
+  renderWaiting(ov.waiting || []);
+  // teams playing today (GMT+7) → default history filter
+  const today = new Date(Date.now()+7*3600*1000).toISOString().slice(0,10);
+  try{
+    const td = await api('matches?date='+today);
+    TODAY_TEAMS = new Set();
+    (td.matches||[]).forEach(m=>{ TODAY_TEAMS.add(m.team1); TODAY_TEAMS.add(m.team2); });
+  }catch(e){ TODAY_TEAMS = new Set(); }
+  if(!TODAY_TEAMS.size) HIST_SCOPE = 'all';
+  updateScopeBtn();
+  populateHistFilters();
+  renderHistory();
+}
+function toggleScope(){ HIST_SCOPE = HIST_SCOPE==='today'?'all':'today'; updateScopeBtn(); renderHistory(); }
+function updateScopeBtn(){
+  const b = $('hist-scope'); if(!b) return;
+  const has = TODAY_TEAMS.size>0;
+  b.disabled = !has;
+  b.classList.toggle('on', HIST_SCOPE==='today' && has);
+  b.textContent = (HIST_SCOPE==='today'&&has) ? `🔎 Đội đá hôm nay (${TODAY_TEAMS.size})` : '📋 Toàn bộ trận';
+}
+function populateHistFilters(){
+  const dates = [...new Set(HIST.map(m=>m.date))];
+  const ds = $('hist-date'); const cur = ds.value;
+  ds.innerHTML = '<option value="">Tất cả ngày</option>'+dates.map(d=>`<option value="${d}">${ddmm(d)}</option>`).join('');
+  ds.value = cur;
+  const us = $('hist-user');
+  if(us.options.length<=1){
+    us.innerHTML = '<option value="">Tất cả người</option>'+
+      Object.entries(HIST_NAMES).map(([u,n])=>`<option value="${u}">${n}</option>`).join('');
+  }
+}
+function renderHistory(){
+  const fd = $('hist-date').value, fu = $('hist-user').value;
+  let list = HIST.filter(m=>!fd || m.date===fd);
+  if(HIST_SCOPE==='today' && TODAY_TEAMS.size){
+    list = list.filter(m=>TODAY_TEAMS.has(m.team1)||TODAY_TEAMS.has(m.team2));
+  }
+  const box = $('history');
+  if(!list.length){
+    const msg = (HIST_SCOPE==='today'&&TODAY_TEAMS.size)
+      ? 'Chưa có trận lịch sử nào liên quan đội đá hôm nay. Bấm "Toàn bộ trận" để xem hết.'
+      : 'Chưa có trận nào kết thúc.';
+    box.innerHTML=`<div class="card empty">${msg}</div>`; return;
+  }
+  const users = Object.keys(HIST_NAMES);
+  const cols = fu ? [fu] : users;
+  let h = '<div class="card htable-wrap"><table class="htable"><thead><tr>'+
+    '<th>Trận</th>'+
+    cols.map(u=>`<th style="color:${USER_COLOR[u]}">${HIST_NAMES[u]}</th>`).join('')+
+    '<th>Ngày · Giờ</th></tr></thead><tbody>';
+  for(const m of list){
+    const favIs1 = m.hcap_side===1;
+    const det = {}; m.detail.forEach(d=>det[d.username]=d);
+    const t1cls = m.winner===m.team1?'win':'lose', t2cls = m.winner===m.team2?'win':'lose';
+    // mức chấp dưới mỗi đội: đội chấp '−hcap', đội được chấp '+hcap'
+    const hcStr = v => (v>0?'+':(v<0?'−':''))+Math.abs(v);
+    const h1 = favIs1 ? -m.hcap : m.hcap, h2 = favIs1 ? m.hcap : -m.hcap;
+    const score = String(m.score).replace('-',' - ');
+    const matchCell = `<div class="mgrid">`+
+      `<span class="tmw t1"><span class="tm ${t1cls}">${m.team1}</span><span class="hcsub">${hcStr(h1)}</span></span>`+
+      `<b class="hsc">${score}</b>`+
+      `<span class="tmw t2"><span class="tm ${t2cls}">${m.team2}</span><span class="hcsub">${hcStr(h2)}</span></span>`+
+      `</div>`;
+    h += `<tr>
+      <td class="l mt">${matchCell}</td>`+
+      cols.map(u=>{
+        const d = det[u];
+        if(!d) return '<td class="pc">—</td>';
+        // không vote → bị phạt 50, hiện rõ
+        if(d.result==='novote'){
+          return `<td class="pc"><span class="vt r">✗ ko vote</span><span class="mn r">${fmtNum(d.pnl)}</span></td>`;
+        }
+        const vc = d.result==='win'?'g':(d.result==='lose'?'r':'');
+        const pc = d.pnl>0?'r':'g';   // tốn tiền → đỏ; 0đ → xanh
+        return `<td class="pc"><span class="vt ${vc}">${d.team}</span><span class="mn ${pc}">${fmtNum(d.pnl)}</span></td>`;
+      }).join('')+
+      `<td class="dt">${ddmm(m.date)}${m.ko?`<br>🕐 ${koTime(m)}`:''}</td>`+
+      '</tr>';
+  }
+  h += '</tbody></table></div>';
+  box.innerHTML = h;
+}
+function renderStandings(st){
+  let h = `<thead><tr><th class="pos">#</th><th style="text-align:left">Người</th>
+    <th>Tiền nộp</th><th>Đúng</th><th>Sai</th><th>Hòa</th><th>% Đúng</th></tr></thead><tbody>`;
+  h += st.map((r,i)=>`<tr class="${i===0?'rank1':''}">
+    <td class="pos">${i+1}</td>
+    <td class="name"><span class="udot" style="background:${USER_COLOR[r.username]}"></span>${r.name}</td>
+    <td class="pts ${r.points>0?'dn':'up'}">${fmtNum(r.points)}</td>
+    <td>${r.correct}</td><td>${r.wrong}</td><td>${r.push}</td>
+    <td><b>${r.rate}%</b></td></tr>`).join('');
+  h += '</tbody>';
+  $('standings').innerHTML = h;
+}
+function renderCharts(chart, st){
+  const labels = chart.labels;
+  const users = Object.keys(chart.series);
+  const dsP = users.map(u=>({
+    label: chart.names[u]||u, data: chart.series[u],
+    borderColor: USER_COLOR[u], backgroundColor:'transparent',
+    tension:.25, borderWidth:2, pointRadius:2 }));
+  if(chPoints) chPoints.destroy();
+  chPoints = new Chart($('ch-points'),{type:'line',
+    data:{labels, datasets:dsP},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#8aa0b6',boxWidth:12,font:{size:11}}}},
+      scales:{x:{ticks:{color:'#8aa0b6'},grid:{color:'#1b2533'}},
+              y:{ticks:{color:'#8aa0b6'},grid:{color:'#1b2533'}}}}});
+  if(chAcc) chAcc.destroy();
+  chAcc = new Chart($('ch-acc'),{type:'bar',
+    data:{labels:st.map(r=>r.name),datasets:[{label:'% đúng',
+      data:st.map(r=>r.rate),backgroundColor:st.map(r=>USER_COLOR[r.username])}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#8aa0b6'},grid:{display:false}},
+              y:{beginAtZero:true,max:100,ticks:{color:'#8aa0b6'},grid:{color:'#1b2533'}}}}});
+}
+
+/* ── Admin ── */
+const WC_TEAMS = ["Ai Cập","Algeria","Anh","Argentina","Bosnia","Brazil","Bỉ","Bồ Đào Nha","Bờ Biển Ngà","Cabo Verde","Canada","Colombia","Congo","Croatia","Curaçao","Ecuador","Ghana","Haiti","Hà Lan","Hàn Quốc","Iran","Iraq","Jordan","Ma-rốc","Mexico","Mỹ","Na Uy","Nam Phi","New Zealand","Nhật Bản","Panama","Paraguay","Pháp","Qatar","Scotland","Senegal","Séc","Thổ Nhĩ Kỳ","Thụy Sĩ","Thụy Điển","Tunisia","Tây Ban Nha","Uruguay","Uzbekistan","Áo","Úc","Đức","Ả Rập Xê Út"];
+function isoG7(off){ return new Date(Date.now()+7*3600*1000+off*86400000).toISOString().slice(0,10); }
+function setMatchDate(off){ $('m-date').value = isoG7(off); onAdminDate(); }
+function onAdminDate(){ renderFixtureEntry(); if(ME&&ME.is_admin) loadAdminList(); }
+function toggleAdmin(){
+  $('admin-body').classList.toggle('hidden');
+  $('admin-caret').textContent = $('admin-body').classList.contains('hidden')?'▸':'▾';
+}
+function closeMx(id){ const el=$('mx-'+id); if(el) el.innerHTML=''; }
+// Sửa tại chỗ. Trận chưa có KQ: chỉ đội chấp/mức chấp/T-X. Trận đã có KQ: thêm tỷ số + bet + odd.
+function editKeoInline(id){
+  const m = ADMIN_MATCHES.find(x=>x.id===id); if(!m) return;
+  const el = $('mx-'+id); if(!el) return;
+  if(el.innerHTML){ el.innerHTML=''; return; }   // toggle
+  const finished = m.score1!=null && m.score2!=null;
+  const scoreRow = finished ? `<div class="fxrow" style="border-top:none;padding:2px 0">
+      <span class="muted" style="font-size:12px">Tỷ số</span>
+      <input id="ek-s1-${id}" class="fxnum" type="number" value="${m.score1}" style="width:52px;text-align:center">
+      <span class="muted">-</span>
+      <input id="ek-s2-${id}" class="fxnum" type="number" value="${m.score2}" style="width:52px;text-align:center">
+    </div>` : '';
+  el.innerHTML = `<div style="padding:2px 0 4px">
+    ${scoreRow}
+    <div class="fxrow" style="border-top:none;padding:2px 0">
+      <span class="muted" style="font-size:12px">🕐 Giờ VN</span>
+      <input id="ek-ko-${id}" type="datetime-local" value="${m.ko||''}" style="width:auto">
+    </div>
+    <div class="fxrow" style="border-top:none;padding:2px 0">
+      <select id="ek-side-${id}"><option value="1">${m.team1} chấp</option><option value="2">${m.team2} chấp</option></select>
+      <input id="ek-hcap-${id}" class="fxnum" type="number" step="0.25" value="${m.hcap}" placeholder="chấp">
+      <input id="ek-ou-${id}" class="fxnum" type="number" step="0.25" value="${m.ou_line??''}" placeholder="T/X">
+      <button class="btn sm" onclick="saveKeoInline('${id}')">Lưu</button>
+      <button class="btn ghost sm" onclick="closeMx('${id}')">Hủy</button>
+    </div>
+  </div>`;
+  $('ek-side-'+id).value = m.hcap_side;
+}
+function saveKeoInline(id){
+  const m = ADMIN_MATCHES.find(x=>x.id===id); if(!m) return;
+  const hcap = $('ek-hcap-'+id).value;
+  if(hcap===''){ toast('Cần mức chấp'); return; }
+  const finished = m.score1!=null && m.score2!=null;
+  const matchBody = { id, date:m.date, team1:m.team1, team2:m.team2,
+    hcap_side:$('ek-side-'+id).value, hcap, ou_line:$('ek-ou-'+id).value,
+    ko: $('ek-ko-'+id).value };
+  (async()=>{
+    try{
+      await api('match',{method:'POST',body:JSON.stringify(matchBody)});  // kèo chấp + T/X (giữ tỷ số)
+      if(finished){
+        const s1=$('ek-s1-'+id).value, s2=$('ek-s2-'+id).value;
+        if(s1===''||s2===''){ toast('Cần tỷ số'); return; }
+        await api('result',{method:'POST',body:JSON.stringify({id,score1:s1,score2:s2})});  // cập nhật tỷ số
+      }
+      toast('Đã sửa'); closeMx(id);
+      loadAdminList().then(renderFixtureEntry); loadMatches(); loadOverview();
+    }catch(e){ toast(e.message); }
+  })();
+}
+function delMatch(id){
+  if(!confirm('Xóa trận này?')) return;
+  api('match/'+id,{method:'DELETE'}).then(()=>{toast('Đã xóa');loadAdminList().then(renderFixtureEntry);loadMatches();loadOverview();})
+    .catch(e=>toast(e.message));
+}
+function saveResult(id){
+  const s1=$('r1-'+id).value, s2=$('r2-'+id).value;
+  api('result',{method:'POST',body:JSON.stringify({id,score1:s1,score2:s2})})
+    .then(()=>{toast('Đã lưu kết quả');loadAdminList();loadMatches();loadOverview();})
+    .catch(e=>toast(e.message));
+}
+let ADMIN_MATCHES=[];
+async function loadAdminList(){
+  const date = $('m-date')?.value;
+  const {matches} = await api('matches'+(date?('?date='+encodeURIComponent(date)):''));
+  ADMIN_MATCHES = matches;
+  const box=$('admin-mlist');
+  if(!matches.length){ box.innerHTML='<div class="muted" style="margin-top:12px;font-size:13px">Chưa có trận nào ngày '+(date||'')+'. Tạo ở khu "Nhập kèo theo lịch" trên.</div>'; return; }
+  box.innerHTML = '<div class="muted" style="font-size:12px;margin-top:6px">Trận ngày '+(date||'')+' — sửa kèo / xóa. Tỷ số nhập ở phần "Chờ kết quả".</div>'+
+    matches.map(m=>{
+      const st = m.score1!=null ? `<span class="muted">${m.score1}-${m.score2}</span>`
+               : (m.locked ? '<span class="muted">chờ KQ</span>' : '<span class="muted">đang vote</span>');
+      const ou = (m.ou_line!=null && m.ou_line!=='') ? `, T/X ${m.ou_line}` : '';
+      return `<div class="mrow">
+      <span class="nm">${m.team1} <span class="muted">vs</span> ${m.team2}
+        <span class="muted">(${m.hcap_side===1?m.team1:m.team2} −${m.hcap}${ou})</span></span>
+      ${m.ko?`<span class="chip tm">🕐 ${koTime(m)}</span>`:''}
+      ${st}
+      <button class="btn sec sm" onclick="editKeoInline('${m.id}')">Sửa kèo</button>
+      <button class="btn danger sm" onclick="delMatch('${m.id}')">Xóa</button>
+      <div id="mx-${m.id}" style="flex:1 0 100%"></div>
+    </div>`;}).join('');
+}
+/* ── Nhập kèo theo lịch (admin) ── */
+async function renderFixtureEntry(){
+  const box = $('fx-entry'); if(!box) return;
+  const date = $('m-date').value;
+  const fx = FIXTURES[date] || [];
+  if(!fx.length){
+    box.innerHTML = '<div class="muted" style="font-size:13px;margin-top:8px">Ngày này không có lịch vòng bảng dựng sẵn (vd ngày nghỉ / vòng knockout). Knockout sẽ được bổ sung khi tới vòng đó.</div>';
+    return;
+  }
+  let existing = [];
+  try{ existing = (await api('matches?date='+encodeURIComponent(date))).matches || []; }catch(e){}
+  const created = new Set(existing.map(m=>_pairKey(m.team1,m.team2)));
+  box.innerHTML = fx.map(([a,b,ko],i)=>{
+    const tchip = ko ? `<span class="chip tm">🕐 ${ko.slice(11,16)}${ko.slice(0,10)!==date?` · ${ddmm(ko.slice(0,10))}`:''}</span>` : '';
+    if(created.has(_pairKey(a,b)))
+      return `<div class="fxrow done"><span class="fxpair">${a} <span class="muted">vs</span> ${b}</span>${tchip}<span class="muted">✓ đã tạo</span></div>`;
+    return `<div class="fxrow" id="fx-${i}">
+      <span class="fxpair">${a} <span class="muted">vs</span> ${b}</span>${tchip}
+      <select id="fxside-${i}" title="đội chấp"><option value="1">${a} chấp</option><option value="2">${b} chấp</option></select>
+      <input id="fxhcap-${i}" class="fxnum" type="number" step="0.25" placeholder="mức chấp">
+      <input id="fxou-${i}" class="fxnum" type="number" step="0.25" placeholder="T/X">
+      <button class="btn sm" onclick='createFromFixture(${i}, ${JSON.stringify(a)}, ${JSON.stringify(b)}, ${JSON.stringify(date)})'>Tạo</button>
+    </div>`;
+  }).join('');
+}
+function createFromFixture(i, a, b, date){
+  const hcap = $('fxhcap-'+i).value;
+  if(hcap===''){ toast('Cần nhập mức chấp'); return; }
+  const body = { date, team1:a, team2:b, hcap_side:$('fxside-'+i).value, hcap, ou_line:$('fxou-'+i).value, ko: fixtureKo(date,a,b) };
+  api('match',{method:'POST',body:JSON.stringify(body)}).then(()=>{
+    toast('Đã tạo '+a+' vs '+b);
+    loadDates().then(()=>{ $('date-sel').value=date; loadMatches(); });
+    loadAdminList().then(renderFixtureEntry);
+    loadOverview();
+  }).catch(e=>toast(e.message));
+}
+
+/* hook: admin đổi ngày → làm mới khu lịch + danh sách trận */
+$('m-date').addEventListener('change', onAdminDate);
+
+/* ── start ── */
+boot();
+</script>
+</body>
+</html>
