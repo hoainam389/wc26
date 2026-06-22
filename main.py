@@ -19,4 +19,5 @@ app.include_router(wc26.router)
 
 @app.get("/")
 def root():
-    return {"app": "WC26 Vote", "open": "/wc26"}
+    # Trang gốc mở thẳng app (cùng HTML với /wc26)
+    return wc26.wc26_page()
