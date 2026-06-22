@@ -1,9 +1,10 @@
-# Deploy WC26 lên Vercel (Upstash Redis qua Marketplace)
+# Deploy WC26 lên Vercel (Upstash Redis)
 
 App WC26 ghi dữ liệu (vote, trận, kết quả, session) ra storage. Vercel có
 filesystem **read-only & ephemeral** nên không thể ghi file JSON như khi chạy
-trên server có ổ đĩa thật. Vì vậy trên Vercel ta dùng **Upstash Redis** — gắn
-trực tiếp qua **Vercel Marketplace**, Vercel tự inject credential.
+trên server có ổ đĩa thật. Vì vậy trên Vercel ta dùng **Upstash Redis** (free
+tier, không cần thẻ) — gắn qua Vercel Marketplace hoặc tạo thẳng ở Upstash
+console rồi dán credential.
 
 Code đã hỗ trợ sẵn cả hai môi trường:
 
@@ -36,30 +37,42 @@ git push
 2. Import repo này.
 3. Bấm **Deploy** (lần đầu app build được nhưng chưa có Redis — sẽ gắn ở bước 3).
 
-### 3. Gắn Upstash Redis qua Marketplace
+### 3. Gắn Upstash Redis
 
-1. Mở project → tab **Storage** → **Create Database**.
-2. Chọn **Upstash for Redis**.
-3. Chọn region gần người dùng (vd **Singapore**) → tạo.
-4. **Connect** database vào project.
+Upstash Redis có **free tier dùng vô thời hạn, không cần thẻ** (256MB + 500K
+lệnh/tháng — app này dùng chưa tới 1% nên miễn phí thoải mái).
 
-Vercel sẽ **tự inject** `KV_REST_API_URL` + `KV_REST_API_TOKEN` vào Environment
-Variables của project — không cần copy tay.
+**Lưu ý free tier chỉ cho 1 DB/tài khoản.** Nếu đã có sẵn 1 DB free, tạo DB
+thứ hai sẽ bị tính phí — khi đó **connect lại vào DB cũ** thay vì tạo mới (an
+toàn: app chỉ đụng key có prefix `wc26:*`, không ảnh hưởng dữ liệu app khác).
+
+- **Cách A — Marketplace (Vercel tự inject env):** project → tab **Storage** →
+  **Connect** (hoặc Create) Upstash Redis → Vercel tự thêm `KV_REST_API_URL` +
+  `KV_REST_API_TOKEN`.
+- **Cách B — Console (tự dán env, chắc chắn free):** tạo/ mở DB ở
+  [console.upstash.com](https://console.upstash.com) → copy REST URL + token →
+  dán vào Vercel **Settings → Environment Variables** (tên `UPSTASH_REDIS_REST_URL`
+  / `UPSTASH_REDIS_REST_TOKEN`).
+
+Code đọc được cả hai cặp tên nên đường nào cũng chạy.
 
 ### 4. Seed dữ liệu hiện có lên Redis (chạy local, 1 lần)
 
-Lấy URL + token: tab **Storage** → mở database → mục **REST API** (hoặc file
-`.env.local` tải về).
+Lấy URL + token từ Upstash console (mục **REST API**) hoặc Vercel env.
 
 ```powershell
 pip install upstash-redis
 $env:KV_REST_API_URL="https://xxx.upstash.io"
 $env:KV_REST_API_TOKEN="xxxxx"
-python seed_redis.py
+
+python seed_redis.py --check   # XEM trước DB có gì (an toàn, không ghi)
+python seed_redis.py           # ghi; dừng nếu key wc26:* đã tồn tại
+python seed_redis.py --force   # ghi đè nếu wc26:* đã có
 ```
 
-Script [seed_redis.py](seed_redis.py) đọc `wc26_data/*.json` và ghi mỗi file thành
-một key `wc26:<tên>` (bỏ qua `sessions.json`). In ra từng key đã ghi.
+Script [seed_redis.py](seed_redis.py) đọc `wc26_data/{users,matches,votes}.json`
+và ghi mỗi file thành key `wc26:<tên>`. Chạy `--check` trước nếu dùng chung DB
+với app khác — nó liệt kê key hiện có và cảnh báo key không phải `wc26:*`.
 
 > Bỏ qua bước này nếu bắt đầu với dữ liệu trống — app sẽ tự tạo khi dùng.
 
