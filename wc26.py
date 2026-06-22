@@ -10,6 +10,7 @@ import hashlib
 import json
 import secrets
 from datetime import datetime, timedelta, timezone
+from itertools import combinations
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -201,6 +202,50 @@ def _match_pnl(match: dict, votes_for_match: dict, all_users) -> dict:
     return out
 
 
+MIN_TOGETHER = 5  # cặp/bộ ba cần ≥ ngần này trận cùng chọn mới được xếp hạng
+
+
+def _chemistry(group_size, resulted_picks, names):
+    """Xếp hạng 'hợp cạ' cho mọi nhóm cỡ group_size (2 hoặc 3).
+
+    resulted_picks: list các (picks:{user:1|2}, win_side:1|2|None) cho trận đã KQ.
+      win_side = đội thắng kèo (None nếu hòa kèo).
+    Một trận tính cho nhóm khi MỌI thành viên đều vote VÀ chọn cùng 1 đội.
+    % = số trận nhóm thắng kèo / số trận cùng chọn (bỏ hòa kèo).
+    Trả (best, worst): mỗi cái là {members:[username], names:[..], rate, win, total}
+    hoặc None nếu không nhóm nào đạt ngưỡng.
+    """
+    users = list(names.keys())
+    stats = {}  # group(tuple) -> [win, total_non_push]
+    for combo in combinations(users, group_size):
+        win = total = 0
+        for picks, win_side in resulted_picks:
+            ps = [picks.get(u) for u in combo]
+            if any(p is None for p in ps):
+                continue                # có người không vote → bỏ
+            if len(set(ps)) != 1:
+                continue                # không cùng 1 cửa
+            side = ps[0]
+            if win_side is None:
+                continue                # hòa kèo → không tính
+            total += 1
+            if side == win_side:
+                win += 1
+        if total >= MIN_TOGETHER:
+            stats[combo] = (win, total)
+    if not stats:
+        return None, None
+
+    def pack(combo):
+        win, total = stats[combo]
+        return {"members": list(combo), "names": [names[u] for u in combo],
+                "rate": round(100 * win / total, 1), "win": win, "total": total}
+
+    best = max(stats, key=lambda c: (stats[c][0] / stats[c][1], stats[c][1]))
+    worst = min(stats, key=lambda c: (stats[c][0] / stats[c][1], -stats[c][1]))
+    return pack(best), pack(worst)
+
+
 def compute_overview() -> dict:
     users = _users()
     matches = _matches()
@@ -215,11 +260,16 @@ def compute_overview() -> dict:
     resulted = [m for m in matches if m.get("score1") is not None and m.get("score2") is not None]
     resulted.sort(key=_ko_key)
 
+    resulted_picks = []  # [(picks{user:1|2}, win_side 1|2|None)] cho 'hợp cạ'
     per_match = []
     for m in resulted:
         vm = {u: s for u, s in votes.get(m["id"], {}).items() if u in users}
         pnl = _match_pnl(m, vm, users)
         d = m.get("date", "")
+        # win_side: đội thắng kèo (1/2) hoặc None nếu hòa kèo
+        r1 = ah_result(1, int(m["hcap_side"]), float(m["hcap"]), m["score1"], m["score2"])
+        win_side = 1 if r1 > 0 else (2 if r1 < 0 else None)
+        resulted_picks.append((vm, win_side))
         by_date.setdefault(d, {u: 0.0 for u in users})
         for u, p in pnl.items():
             totals[u] += p
@@ -295,11 +345,20 @@ def compute_overview() -> dict:
         })
     waiting.sort(key=_ko_key)
 
+    # Hợp cạ: cặp & bộ ba hay cùng chọn 1 cửa
+    pair_best, pair_worst = _chemistry(2, resulted_picks, names)
+    trio_best, trio_worst = _chemistry(3, resulted_picks, names)
+
     return {
         "standings": standings,
         "chart": {"labels": dates, "series": series, "names": names},
         "matches": list(reversed(per_match)),
         "waiting": waiting,
+        "chemistry": {
+            "pair_best": pair_best, "pair_worst": pair_worst,
+            "trio_best": trio_best, "trio_worst": trio_worst,
+            "min_together": MIN_TOGETHER,
+        },
     }
 
 

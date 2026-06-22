@@ -130,6 +130,17 @@
   .pts.up{color:var(--win)} .pts.dn{color:var(--lose)}
   .rank1 td{background:linear-gradient(90deg,#2a230a,transparent)}
   .chartbox{position:relative;height:280px}
+  /* ── Hợp cạ ── */
+  .chem-row{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;padding:9px 0;
+    border-bottom:1px solid var(--line);font-size:14.5px}
+  .chem-row:last-child{border-bottom:none}
+  .chem-row .lbl{font-weight:700;display:inline-flex;align-items:center;gap:6px}
+  .chem-row .lbl.good{color:#86e6a0} .chem-row .lbl.bad{color:#7fc4ee}
+  .chem-row .who{font-weight:800;color:var(--txt)}
+  .chem-row .pct{font-weight:800}
+  .chem-row .pct.good{color:var(--win)} .chem-row .pct.bad{color:var(--lose)}
+  .chem-row .sub{color:var(--mut);font-size:12.5px}
+  .chem-note{color:var(--mut);font-size:12.5px;margin-top:10px}
   .grid2{display:grid;grid-template-columns:1fr;gap:14px}
 
   /* ── Admin ── */
@@ -296,6 +307,10 @@
   <div class="card">
     <h3 style="margin-bottom:12px">Bảng xếp hạng</h3>
     <div style="overflow-x:auto"><table id="standings"></table></div>
+  </div>
+  <div class="card" id="chemistry-card">
+    <h3 style="margin-bottom:12px">🤝 Hợp cạ</h3>
+    <div id="chemistry"></div>
   </div>
   <div class="grid2">
     <div class="card">
@@ -614,6 +629,7 @@ async function loadOverview(){
   HIST_NAMES = ov.chart.names || {};
   setColors(HIST_NAMES);
   renderStandings(ov.standings);
+  renderChemistry(ov.chemistry);
   renderCharts(ov.chart, ov.standings);
   HIST = ov.matches || [];
   renderWaiting(ov.waiting || []);
@@ -698,6 +714,26 @@ function renderHistory(){
   }
   h += '</tbody></table></div>';
   box.innerHTML = h;
+}
+function renderChemistry(ch){
+  const card = $('chemistry-card'), box = $('chemistry');
+  if(!ch){ card.classList.add('hidden'); return; }
+  const rows = [
+    ['good','🔥','Cặp đồng lòng chuẩn nhất', ch.pair_best],
+    ['bad','🧊','Cặp đồng lòng sai nhiều nhất', ch.pair_worst],
+    ['good','🔥','Bộ ba đồng lòng chuẩn nhất', ch.trio_best],
+    ['bad','🧊','Bộ ba đồng lòng sai nhiều nhất', ch.trio_worst],
+  ].filter(([,,,c])=>c);
+  if(!rows.length){ card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  box.innerHTML = rows.map(([cls,ic,lbl,c])=>
+    `<div class="chem-row">
+      <span class="lbl ${cls}">${ic} ${lbl}</span>
+      <span class="who">${c.names.join(' – ')}</span>
+      <span class="pct ${cls}">${c.rate}%</span>
+      <span class="sub">(đúng ${c.win}/${c.total} trận cùng chọn)</span>
+    </div>`).join('')+
+    `<div class="chem-note">Trong các trận cùng chọn 1 cửa (cả nhóm đều vote &amp; chọn cùng đội), % = số trận cửa đó thắng kèo / số trận cùng chọn. Chỉ xét nhóm có ≥ ${ch.min_together} trận (đã có KQ, bỏ hòa kèo).</div>`;
 }
 function renderStandings(st){
   let h = `<thead><tr><th class="pos">#</th><th style="text-align:left">Người</th>
