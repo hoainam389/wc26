@@ -28,7 +28,7 @@ VOTES_FILE = DATA_DIR / "votes.json"
 SESSIONS_FILE = DATA_DIR / "sessions.json"
 
 GMT7 = timezone(timedelta(hours=7))
-VOTE_DEADLINE_HOUR = 18  # votes for a match's date lock at 18:00 GMT+7
+VOTE_DEADLINE_HOUR = 22  # votes for a match's date lock at 22:00 GMT+7
 
 # ── Backend selection ─────────────────────────────────────────────────────────
 # On a server with a real disk we read/write JSON files. On serverless hosts
@@ -278,7 +278,7 @@ def compute_overview() -> dict:
         })
     standings.sort(key=lambda x: x["points"])  # nộp ít nhất lên đầu
 
-    # waiting = vote đã khóa (qua 18:00 GMT+7) nhưng chưa có kết quả
+    # waiting = vote đã khóa (qua 22:00 GMT+7) nhưng chưa có kết quả
     waiting = []
     for m in matches:
         if m.get("score1") is not None and m.get("score2") is not None:
@@ -429,7 +429,7 @@ async def wc26_vote(request: Request):
     if not match:
         raise HTTPException(404, "Không tìm thấy trận")
     if _is_locked(match.get("date", "")) or match.get("score1") is not None:
-        raise HTTPException(403, "Đã khóa vote (qua 18:00 GMT+7 hoặc đã có kết quả)")
+        raise HTTPException(403, "Đã khóa vote (qua 22:00 GMT+7 hoặc đã có kết quả)")
     votes = _votes()
     votes.setdefault(mid, {})[me["username"]] = pick
     _save(VOTES_FILE, votes)

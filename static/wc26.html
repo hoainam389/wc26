@@ -224,7 +224,7 @@
     <h2>Đăng nhập</h2>
     <p>Vote kèo &amp; theo dõi thống kê World Cup 2026</p>
     <label>Tài khoản</label>
-    <input id="lg-user" autocomplete="username" placeholder="vd: quan, nam, vuong...">
+    <input id="lg-user" autocomplete="username" placeholder="vd: nam.nguyen, tien.le, huy.pham...">
     <label>Mật khẩu</label>
     <input id="lg-pass" type="password" autocomplete="current-password" placeholder="••••••••">
     <button class="btn" onclick="doLogin()">Vào</button>
@@ -320,11 +320,11 @@ function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show')
   clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);}
 function todayG7(){ return new Date(Date.now()+7*3600*1000).toISOString().slice(0,10); }
 function ddmm(d){ return d ? d.slice(8,10)+'/'+d.slice(5,7) : ''; }
-// Cụm đang mở vote (rule 18:00→18:00): trước 18:00 GMT+7 là cụm "hôm nay";
-// từ 18:00 trở đi cụm hôm nay khóa → nhảy sang cụm đêm kế tiếp để vote luôn.
+// Cụm đang mở vote (rule 22:00→22:00): trước 22:00 GMT+7 là cụm "hôm nay";
+// từ 22:00 trở đi cụm hôm nay khóa → nhảy sang cụm đêm kế tiếp để vote luôn.
 function votableDate(){
   const base = new Date(Date.now()+7*3600*1000);
-  if(base.getUTCHours()>=18) base.setUTCDate(base.getUTCDate()+1);   // 18:00 = chốt cụm cũ, mở cụm mới
+  if(base.getUTCHours()>=22) base.setUTCDate(base.getUTCDate()+1);   // 22:00 = chốt cụm cũ, mở cụm mới
   return base.toISOString().slice(0,10);
 }
 
@@ -427,14 +427,14 @@ function pickerDot(u){ return `<span class="udot" style="background:${USER_COLOR
 function renderMatchesHtml(matches){
   const box = $('matches');
   const date = $('date-sel').value;
-  const vd = votableDate();   // cụm đang mở vote (đã tính mốc 18:00)
+  const vd = votableDate();   // cụm đang mở vote (đã tính mốc 22:00)
   const allUsers = Object.keys(MATCH_USERS||{});
   const open = (matches||[]).filter(m=>!m.locked && m.score1==null);   // có kèo, chưa khóa, chưa có KQ
   const created = new Set((matches||[]).map(m=>_pairKey(m.team1,m.team2)));
   const fixtures = FIXTURES[date] || [];
   const entries = [];   // {ko, html} — gộp trận đã tạo + cặp theo lịch, rồi xếp theo giờ
 
-  // A) Trận đã có kèo: cụm đang mở → vote được; cụm sau → chỉ xem (mở vote ở mốc 18:00 hôm trước)
+  // A) Trận đã có kèo: cụm đang mở → vote được; cụm sau → chỉ xem (mở vote ở mốc 22:00 hôm trước)
   for(const m of open){
     entries.push({ko:_koSort(m), html:(date===vd) ? voteCardHtml(m, allUsers) : previewCardHtml(m)});
   }
@@ -450,8 +450,8 @@ function renderMatchesHtml(matches){
 
   // C) Không có thẻ nào → thông báo theo ngữ cảnh
   let msg;
-  if(date<vd) msg = 'Cụm này đã khóa vote (qua 18:00) — trận chờ ở "Chờ kết quả", kết quả ở "Lịch sử" bên dưới.';
-  else if(date>vd) msg = 'Chưa tới lượt vote — cụm này mở khi cụm trước khóa (18:00 hôm trước). Admin có thể nhập kèo trước trong phần Quản lý.';
+  if(date<vd) msg = 'Cụm này đã khóa vote (qua 22:00) — trận chờ ở "Chờ kết quả", kết quả ở "Lịch sử" bên dưới.';
+  else if(date>vd) msg = 'Chưa tới lượt vote — cụm này mở khi cụm trước khóa (22:00 hôm trước). Admin có thể nhập kèo trước trong phần Quản lý.';
   else msg = 'Cụm đang mở chưa có trận trong lịch.';
   box.innerHTML = '<div class="card empty">'+msg+'</div>';
 }
@@ -470,7 +470,7 @@ function voteCardHtml(m, allUsers){
   const noVoters = allUsers.filter(u=>!(m.votes[u]&&m.votes[u].pick));
   const waitRow = noVoters.length ? '<div class="voter-row">'+noVoters.map(u=>
       `<span class="av wait">${pickerDot(u)}${MATCH_USERS[u]}</span>`).join('')+'</div>' : '';
-  const note = `<div class="locked-note">🕓 Mở vote đến 18:00 GMT+7 · <b>${m.vote_count}/${allUsers.length}</b> đã vote · ⚠️ không vote = phạt 50</div>`;
+  const note = `<div class="locked-note">🕓 Mở vote đến 22:00 GMT+7 · <b>${m.vote_count}/${allUsers.length}</b> đã vote · ⚠️ không vote = phạt 50</div>`;
   return `<div class="card match" data-mid="${m.id}">
     <div class="meta">${chips}</div>
     <div class="vs">
@@ -499,7 +499,7 @@ function previewCardHtml(m){
       <div class="midvs">VS</div>
       <div class="pick nokeo"><span class="tn">${m.team2}</span><span class="hc">${hc2}</span></div>
     </div>
-    <div class="nokeo-note ready">🔒 Đã có kèo · mở vote khi cụm trước khóa (18:00)</div>
+    <div class="nokeo-note ready">🔒 Đã có kèo · mở vote khi cụm trước khóa (22:00)</div>
   </div>`;
 }
 // Thẻ cặp đấu theo lịch nhưng admin chưa nhập kèo
