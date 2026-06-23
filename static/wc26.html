@@ -26,6 +26,10 @@
   input,select{font-family:inherit;background:var(--panel2);border:1px solid var(--line);
     color:var(--txt);border-radius:10px;padding:10px 12px;font-size:15px;width:100%}
   input:focus,select:focus{outline:none;border-color:var(--acc2)}
+  /* icon lịch của date/datetime picker → sáng cùng tông chữ (nền tối) */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator{
+    filter:invert(1);opacity:.75;cursor:pointer}
   .muted{color:var(--mut)}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
     padding:16px;margin-bottom:14px}
@@ -709,7 +713,7 @@ function renderHistory(){
         const pc = d.pnl>0?'r':'g';   // tốn tiền → đỏ; 0đ → xanh
         return `<td class="pc"><span class="vt ${vc}">${d.team}</span><span class="mn ${pc}">${fmtNum(d.pnl)}</span></td>`;
       }).join('')+
-      `<td class="dt">${ddmm(m.date)}${m.ko?`<br>🕐 ${koTime(m)}`:''}</td>`+
+      `<td class="dt">${ddmm(m.date)}${m.ko?`<br>${koTime(m)}`:''}</td>`+
       '</tr>';
   }
   h += '</tbody></table></div>';
