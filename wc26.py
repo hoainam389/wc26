@@ -274,24 +274,25 @@ def compute_overview() -> dict:
         for u, p in pnl.items():
             totals[u] += p
             by_date[d][u] += p
-        # accuracy per voter
-        for u, pick in vm.items():
-            r = ah_result(pick, int(m["hcap_side"]), float(m["hcap"]), m["score1"], m["score2"])
-            if r > 0:
-                acc[u]["correct"] += 1
-            elif r < 0:
-                acc[u]["wrong"] += 1
-            else:
-                acc[u]["push"] += 1
-        # per-user detail for history
+        # accuracy + per-user detail for history (duyệt tất cả users:
+        # không vote → tính là thua, vẫn phạt 50)
         detail = []
         for u in users:
             pick = vm.get(u)
             if pick:
                 r = ah_result(pick, int(m["hcap_side"]), float(m["hcap"]), m["score1"], m["score2"])
-                res = "win" if r > 0 else ("lose" if r < 0 else "push")
+                if r > 0:
+                    acc[u]["correct"] += 1
+                    res = "win"
+                elif r < 0:
+                    acc[u]["wrong"] += 1
+                    res = "lose"
+                else:
+                    acc[u]["push"] += 1
+                    res = "push"
             else:
-                res = "novote"  # không vote → phạt 50, không tính đúng/sai
+                acc[u]["wrong"] += 1  # không vote → tính là thua
+                res = "novote"  # không vote → phạt 50, đánh dấu là thua
             detail.append({
                 "username": u, "name": names[u],
                 "pick": pick,
