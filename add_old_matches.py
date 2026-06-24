@@ -35,13 +35,15 @@ OLD_MATCHES = [
     {"date": "2026-06-13", "team1": "Brazil", "team2": "Ma-rốc", "score1": 1, "score2": 1, "hcap_side": 1, "hcap": 0.75, "ou": 2.25, "ko": "2026-06-13T05:00"},
     {"date": "2026-06-13", "team1": "Haiti", "team2": "Scotland", "score1": 0, "score2": 1, "hcap_side": 2, "hcap": 1, "ou": 2.5, "ko": "2026-06-13T08:00"},
     # 14/06
-    {"date": "2026-06-14", "team1": "Úc", "team2": "Thổ Nhĩ Kỳ", "score1": 2, "score2": 0, "hcap_side": 2, "hcap": 0.75, "ou": 2.5, "ko": "2026-06-14T23:00"},
+    # đá 23:00 13/06 nhưng tính vào kèo 14/06 → date=14, ko=13
+    {"date": "2026-06-14", "team1": "Úc", "team2": "Thổ Nhĩ Kỳ", "score1": 2, "score2": 0, "hcap_side": 2, "hcap": 0.75, "ou": 2.5, "ko": "2026-06-13T23:00"},
     {"date": "2026-06-14", "team1": "Đức", "team2": "Curaçao", "score1": 7, "score2": 1, "hcap_side": 1, "hcap": 3.5, "ou": 4.25, "ko": "2026-06-14T00:00"},
     {"date": "2026-06-14", "team1": "Hà Lan", "team2": "Nhật Bản", "score1": 2, "score2": 2, "hcap_side": 1, "hcap": 0.5, "ou": 2.5, "ko": "2026-06-14T03:00"},
     {"date": "2026-06-14", "team1": "Bờ Biển Ngà", "team2": "Ecuador", "score1": 1, "score2": 0, "hcap_side": 2, "hcap": 0.25, "ou": 2, "ko": "2026-06-14T06:00"},
     {"date": "2026-06-14", "team1": "Thụy Điển", "team2": "Tunisia", "score1": 5, "score2": 1, "hcap_side": 1, "hcap": 0.5, "ou": 2.25, "ko": "2026-06-14T09:00"},
     # 15/06
-    {"date": "2026-06-15", "team1": "Tây Ban Nha", "team2": "Cabo Verde", "score1": 0, "score2": 0, "hcap_side": 1, "hcap": 2.75, "ou": 3.5, "ko": "2026-06-15T23:00"},
+    # đá 23:00 14/06 nhưng tính vào kèo 15/06 → date=15, ko=14
+    {"date": "2026-06-15", "team1": "Tây Ban Nha", "team2": "Cabo Verde", "score1": 0, "score2": 0, "hcap_side": 1, "hcap": 2.75, "ou": 3.5, "ko": "2026-06-14T23:00"},
     {"date": "2026-06-15", "team1": "Bỉ", "team2": "Ai Cập", "score1": 1, "score2": 1, "hcap_side": 1, "hcap": 1, "ou": 2.5, "ko": "2026-06-15T02:00"},
     {"date": "2026-06-15", "team1": "Ả Rập Xê Út", "team2": "Uruguay", "score1": 1, "score2": 1, "hcap_side": 2, "hcap": 1, "ou": 2.5, "ko": "2026-06-15T05:00"},
     {"date": "2026-06-15", "team1": "Iran", "team2": "New Zealand", "score1": 2, "score2": 2, "hcap_side": 1, "hcap": 0.5, "ou": 2, "ko": "2026-06-15T08:00"},
