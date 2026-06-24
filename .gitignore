@@ -16,3 +16,7 @@ wc26-deployed-*.png
 
 # Backup dump dữ liệu prod — không commit
 matches_backup_prod.json
+
+# Dump data game người khác (chỉ dùng tham chiếu giờ) + script sync một lần
+data.json
+sync_ko_from_data.py
