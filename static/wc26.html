@@ -195,7 +195,6 @@
   td.pc .mn{display:block;font-weight:800;line-height:1.25}
   .vt.g,.mn.g{color:var(--win)} .vt.r,.mn.r{color:var(--lose)}
   .vt{color:var(--mut)} .mn{color:var(--mut)}
-  .nctag{display:block;font-size:9px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;margin-top:1px}
 
   /* ── Thẻ trận chưa có kèo / preview ngày mai ── */
   .pick.nokeo{border-style:dashed;opacity:.9;cursor:default;background:var(--panel2)}
@@ -691,18 +690,17 @@ function renderHistory(){
   for(const m of list){
     const favIs1 = m.hcap_side===1;
     const det = {}; m.detail.forEach(d=>det[d.username]=d);
-    const nc = !!m.nocount;  // trận cũ trước khi trò chơi bắt đầu — không tính
-    // trận nocount: không tô thắng/thua kèo, không hiện mức chấp
-    const t1cls = nc?'':(m.winner===m.team1?'win':'lose'), t2cls = nc?'':(m.winner===m.team2?'win':'lose');
+    // trận nocount (trận cũ trước giải) hiển thị y như trận thường — tô màu
+    // theo kèo + hiện mức chấp — chỉ khác là cột người để trống, không tính tiền.
+    const t1cls = m.winner===m.team1?'win':'lose', t2cls = m.winner===m.team2?'win':'lose';
     // mức chấp dưới mỗi đội: đội chấp '−hcap', đội được chấp '+hcap'
     const hcStr = v => (v>0?'+':(v<0?'−':''))+Math.abs(v);
     const h1 = favIs1 ? -m.hcap : m.hcap, h2 = favIs1 ? m.hcap : -m.hcap;
-    const sub1 = nc?'':hcStr(h1), sub2 = nc?'':hcStr(h2);
+    const sub1 = hcStr(h1), sub2 = hcStr(h2);
     const score = String(m.score).replace('-',' - ');
-    const tag = nc?`<span class="nctag">không tính</span>`:'';
     const matchCell = `<div class="mgrid">`+
       `<span class="tmw t1"><span class="tm ${t1cls}">${m.team1}</span><span class="hcsub">${sub1}</span></span>`+
-      `<b class="hsc">${score}${tag}</b>`+
+      `<b class="hsc">${score}</b>`+
       `<span class="tmw t2"><span class="tm ${t2cls}">${m.team2}</span><span class="hcsub">${sub2}</span></span>`+
       `</div>`;
     h += `<tr>
