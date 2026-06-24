@@ -13,3 +13,6 @@ history.png
 # Ảnh chụp / output tạm khi verify bằng Playwright
 wc26-deployed-*.png
 .playwright-mcp/
+
+# Backup dump dữ liệu prod — không commit
+matches_backup_prod.json

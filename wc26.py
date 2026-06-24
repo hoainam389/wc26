@@ -263,9 +263,23 @@ def compute_overview() -> dict:
     resulted_picks = []  # [(picks{user:1|2}, win_side 1|2|None)] cho 'hợp cạ'
     per_match = []
     for m in resulted:
+        d = m.get("date", "")
+        # Trận cũ trước khi trò chơi bắt đầu: chỉ hiện trong lịch sử để xem,
+        # KHÔNG vote, KHÔNG tính tiền/đúng-sai/hợp cạ cho ai.
+        if m.get("nocount"):
+            per_match.append({
+                "id": m["id"], "date": d, "ko": m.get("ko"),
+                "team1": m["team1"], "team2": m["team2"],
+                "hcap_side": m["hcap_side"], "hcap": m["hcap"],
+                "score": f'{m["score1"]}-{m["score2"]}',
+                "winner": _keo_winner(m),
+                "nocount": True,
+                "detail": [{"username": u, "name": names[u], "pick": None,
+                            "team": None, "result": "skip", "pnl": None} for u in users],
+            })
+            continue
         vm = {u: s for u, s in votes.get(m["id"], {}).items() if u in users}
         pnl = _match_pnl(m, vm, users)
-        d = m.get("date", "")
         # win_side: đội thắng kèo (1/2) hoặc None nếu hòa kèo
         r1 = ah_result(1, int(m["hcap_side"]), float(m["hcap"]), m["score1"], m["score2"])
         win_side = 1 if r1 > 0 else (2 if r1 < 0 else None)
