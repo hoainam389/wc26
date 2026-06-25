@@ -3,11 +3,12 @@
 Standalone page: 6 accounts log in, vote Asian-handicap picks for the day's
 matches; an Overview ("Bảng tổng") shows points, accuracy and charts.
 
-Self-contained auth (separate from the site's /private auth) + JSON storage in
-/root/apps/dashboard/wc26_data/ (runtime data, never overwritten by deploys).
+Self-contained auth (separate from the site's /private auth). All runtime data
+lives in Vercel KV / Upstash Redis (keys `wc26:*`); there is no JSON fallback.
 """
 import hashlib
 import json
+import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from itertools import combinations
@@ -19,76 +20,83 @@ from fastapi.responses import FileResponse, JSONResponse
 router = APIRouter()
 
 # ── Storage ─────────────────────────────────────────────────────────────────
-# Paths resolve relative to this file so the project runs from anywhere
-# (the original deployment hard-coded /root/apps/dashboard/...).
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "wc26_data"
-USERS_FILE = DATA_DIR / "users.json"
-MATCHES_FILE = DATA_DIR / "matches.json"
-VOTES_FILE = DATA_DIR / "votes.json"
-SESSIONS_FILE = DATA_DIR / "sessions.json"
 
 GMT7 = timezone(timedelta(hours=7))
 VOTE_DEADLINE_HOUR = 22  # votes for a match's date lock at 22:00 GMT+7
 
-# ── Backend selection ─────────────────────────────────────────────────────────
-# On a server with a real disk we read/write JSON files. On serverless hosts
-# (Vercel) the filesystem is read-only & ephemeral, so when Upstash Redis
-# credentials are present we store each "file" as one Redis string keyed by its
-# stem (e.g. "wc26:users").
+# ── Backend: Vercel KV / Upstash Redis (only) ─────────────────────────────────
+# All runtime state lives in Redis, one string per logical "file" keyed by its
+# stem (e.g. "wc26:users"). There is no JSON-file fallback — the app refuses to
+# start without credentials so we never silently read stale local data.
 #
 # Credentials come from one of two env-var naming schemes:
 #   - UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN  (Upstash console)
 #   - KV_REST_API_URL        / KV_REST_API_TOKEN         (Vercel Marketplace)
-# Either pair switches storage to Redis automatically; no code change per host.
-import os
+# On Vercel these are injected automatically; locally we read them from .env.
+
+# Logical store names → Redis keys "wc26:<name>".
+USERS, MATCHES, VOTES, SESSIONS = "users", "matches", "votes", "sessions"
+
+
+def _load_dotenv():
+    """Populate os.environ from a local .env (key=value lines) if present.
+
+    Existing env vars win, so Vercel's injected credentials are never
+    overwritten. No-op when .env is absent (e.g. on the serverless host).
+    """
+    env_path = BASE_DIR / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip())
+
+
+_load_dotenv()
 
 _REDIS_URL = os.environ.get("UPSTASH_REDIS_REST_URL") or os.environ.get("KV_REST_API_URL")
 _REDIS_TOKEN = os.environ.get("UPSTASH_REDIS_REST_TOKEN") or os.environ.get("KV_REST_API_TOKEN")
 
-_redis = None
-if _REDIS_URL and _REDIS_TOKEN:
-    from upstash_redis import Redis
-    _redis = Redis(url=_REDIS_URL, token=_REDIS_TOKEN)
+if not (_REDIS_URL and _REDIS_TOKEN):
+    raise RuntimeError(
+        "Thiếu credential Vercel KV / Upstash Redis. Cần KV_REST_API_URL + "
+        "KV_REST_API_TOKEN (hoặc UPSTASH_REDIS_REST_URL/TOKEN) trong .env hoặc "
+        "biến môi trường."
+    )
+
+from upstash_redis import Redis
+
+_redis = Redis(url=_REDIS_URL, token=_REDIS_TOKEN)
 
 
-def _key(path: Path) -> str:
-    return f"wc26:{path.stem}"  # users.json -> wc26:users
-
-
-def _load(path: Path, default):
-    if _redis is not None:
-        try:
-            raw = _redis.get(_key(path))
-            return json.loads(raw) if raw else default
-        except Exception:
-            return default
+def _load(name: str, default):
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        raw = _redis.get(f"wc26:{name}")
+        return json.loads(raw) if raw else default
     except Exception:
         return default
 
 
-def _save(path: Path, data):
-    if _redis is not None:
-        _redis.set(_key(path), json.dumps(data, ensure_ascii=False))
-        return
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+def _save(name: str, data):
+    _redis.set(f"wc26:{name}", json.dumps(data, ensure_ascii=False))
 
 
 def _users() -> dict:
     """username -> {pw_hash, display_name, is_admin}"""
-    return _load(USERS_FILE, {})
+    return _load(USERS, {})
 
 
 def _matches() -> list:
-    return _load(MATCHES_FILE, [])
+    return _load(MATCHES, [])
 
 
 def _votes() -> dict:
     """match_id -> {username: 1|2}"""
-    return _load(VOTES_FILE, {})
+    return _load(VOTES, {})
 
 
 def _ko_key(m: dict):
@@ -106,7 +114,7 @@ def _hash(pw: str) -> str:
 
 
 def _sessions() -> dict:
-    return _load(SESSIONS_FILE, {})
+    return _load(SESSIONS, {})
 
 
 def _current_user(request: Request):
@@ -420,7 +428,7 @@ async def wc26_login(request: Request, response: Response):
             if _safe_after(r.get("exp"), now)}
     sess[token] = {"username": username,
                    "exp": (now + timedelta(days=30)).isoformat()}
-    _save(SESSIONS_FILE, sess)
+    _save(SESSIONS, sess)
     response.set_cookie("wc26_session", token, max_age=86400 * 30,
                         httponly=True, samesite="lax")
     return {"ok": True}
@@ -439,7 +447,7 @@ async def wc26_logout(request: Request, response: Response):
     if token:
         sess = _sessions()
         sess.pop(token, None)
-        _save(SESSIONS_FILE, sess)
+        _save(SESSIONS, sess)
     response.delete_cookie("wc26_session")
     return {"ok": True}
 
@@ -506,7 +514,7 @@ async def wc26_vote(request: Request):
         raise HTTPException(403, "Đã khóa vote (qua 22:00 GMT+7 hoặc đã có kết quả)")
     votes = _votes()
     votes.setdefault(mid, {})[me["username"]] = pick
-    _save(VOTES_FILE, votes)
+    _save(VOTES, votes)
     return {"ok": True}
 
 
@@ -536,7 +544,7 @@ async def wc26_save_match(request: Request):
         mid = secrets.token_hex(6)
         matches.append({"id": mid, "score1": None, "score2": None,
                         "ko": d.get("ko") or None, **payload})
-    _save(MATCHES_FILE, matches)
+    _save(MATCHES, matches)
     return {"ok": True, "id": mid}
 
 
@@ -552,7 +560,7 @@ async def wc26_result(request: Request):
         m["score1"], m["score2"] = None, None  # clear result
     else:
         m["score1"], m["score2"] = int(d["score1"]), int(d["score2"])
-    _save(MATCHES_FILE, matches)
+    _save(MATCHES, matches)
     return {"ok": True}
 
 
@@ -560,10 +568,10 @@ async def wc26_result(request: Request):
 def wc26_delete_match(mid: str, request: Request):
     _require(request, admin=True)
     matches = [m for m in _matches() if m["id"] != mid]
-    _save(MATCHES_FILE, matches)
+    _save(MATCHES, matches)
     votes = _votes()
     votes.pop(mid, None)
-    _save(VOTES_FILE, votes)
+    _save(VOTES, votes)
     return {"ok": True}
 
 
