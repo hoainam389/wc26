@@ -227,6 +227,12 @@
     #history .htable .mgrid{min-width:0;column-gap:5px}
     #history td.pc{min-width:0}
     #history .htable td.dt{padding-left:6px}
+    /* Thẻ trận: thu nhỏ chip + cho giờ ko trôi chung hàng (không ép sang phải)
+       để khỏi rớt xuống dòng lẻ loi khi kèo + T/X dài. */
+    .match .meta{gap:6px}
+    .match .meta .chip{font-size:11px;padding:3px 8px}
+    .meta-time{margin-left:0!important}
+    .vote-cd{margin-left:0!important}
   }
 
   /* ── Sơ đồ nhánh knockout (định vị tuyệt đối + connector SVG) ── */
@@ -278,9 +284,10 @@
   #vote-reminder{position:sticky;top:8px;z-index:40;margin:0 0 14px;cursor:pointer;
     background:linear-gradient(90deg,#3a2410,#2a1810);border:1px solid #6b4310;
     color:#ffd9a0;border-radius:12px;padding:11px 14px;font-size:14px;font-weight:600;
-    box-shadow:0 4px 14px #0007;display:flex;align-items:center;gap:8px}
+    box-shadow:0 4px 14px #0007;line-height:1.5}
   #vote-reminder b{color:#fff}
   #vote-reminder .cd{font-variant-numeric:tabular-nums;color:#ffecb3}
+  .meta-time{margin-left:auto}   /* giờ ko căn phải (desktop); mobile sẽ trôi inline */
   .vote-cd{font-variant-numeric:tabular-nums;font-weight:700;margin-left:auto}
   .vote-cd.soon{color:#ff9a6b}
   .bk-m.bk-click{cursor:pointer}
@@ -504,7 +511,7 @@ function koChip(m){
   if(!m || !m.ko) return '';
   const t = m.ko.slice(11,16), kd = m.ko.slice(0,10);
   const dnote = (m.date && kd!==m.date) ? ` · ${ddmm(kd)}` : '';
-  return `<span class="chip tm">🕐 ${t}${dnote}</span>`;
+  return `<span class="chip tm">${t}${dnote}</span>`;
 }
 // Lấy ko cho 1 cặp đội (vòng bảng hoặc knockout) khi trận chưa được tạo
 function fixtureKo(date,a,b){
@@ -619,7 +626,7 @@ function voteCardHtml(m, allUsers){
   const sel1 = m.my_vote===1, sel2 = m.my_vote===2;
   let chips = `<span class="chip keo">Kèo: ${favIs1?m.team1:m.team2} −${m.hcap}</span>`;
   if(m.ou_line!=null && m.ou_line!=='') chips += `<span class="chip ou">T/X ${m.ou_line}</span>`;
-  if(m.ko) chips += `<span style="margin-left:auto">${koChip(m)}</span>`;
+  if(m.ko) chips += `<span class="meta-time">${koChip(m)}</span>`;
   const pickFor = side => allUsers.filter(u=>m.votes[u]&&m.votes[u].pick===side);
   const pickers = side => `<div class="pickers">`+pickFor(side)
       .map(u=>`<span class="pk">${pickerDot(u)}${MATCH_USERS[u]}</span>`).join('')+`</div>`;
@@ -650,7 +657,7 @@ function previewCardHtml(m){
   if(m.ou_line!=null && m.ou_line!=='') chips += `<span class="chip ou">T/X ${m.ou_line}</span>`;
   const tail = m.ko ? koChip(m) : `<span class="chip">${ddmm(m.date)}</span>`;
   return `<div class="card match">
-    <div class="meta">${chips}<span style="margin-left:auto">${tail}</span></div>
+    <div class="meta">${chips}<span class="meta-time">${tail}</span></div>
     <div class="vs">
       <div class="pick nokeo"><span class="tn">${m.team1}</span><span class="hc">${hc1}</span></div>
       <div class="midvs">VS</div>
@@ -663,7 +670,7 @@ function previewCardHtml(m){
 function nokeoCardHtml(a,b,date,ko){
   const tail = ko ? koChip({ko, date}) : `<span class="chip">${ddmm(date)}</span>`;
   return `<div class="card match">
-    <div class="meta"><span style="margin-left:auto">${tail}</span></div>
+    <div class="meta"><span class="meta-time">${tail}</span></div>
     <div class="vs">
       <div class="pick nokeo"><span class="tn">${a}</span></div>
       <div class="midvs">VS</div>
@@ -707,7 +714,7 @@ function renderWaiting(waiting){
     return `<div class="card match" data-mno="${m.mno??''}">
       <div class="meta"><span class="chip keo">Kèo: ${favIs1?m.team1:m.team2} −${m.hcap}</span>
         ${m.ou_line!=null?`<span class="chip ou">T/X ${m.ou_line}</span>`:''}
-        <span style="margin-left:auto">${m.ko ? koChip(m) : `<span class="chip">${ddmm(m.date)}</span>`}</span></div>
+        <span class="meta-time">${m.ko ? koChip(m) : `<span class="chip">${ddmm(m.date)}</span>`}</span></div>
       <div class="vs">
         <div class="pick"><span class="tn">${m.team1}</span><span class="hc">${favIs1?'−':'+'}${m.hcap}</span>${pickers(1)}</div>
         <div class="midvs">VS</div>
