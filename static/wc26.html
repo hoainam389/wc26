@@ -626,9 +626,8 @@ function voteCardHtml(m, allUsers){
   const noVoters = allUsers.filter(u=>!(m.votes[u]&&m.votes[u].pick));
   const waitRow = noVoters.length ? '<div class="voter-row">'+noVoters.map(u=>
       `<span class="av wait">${pickerDot(u)}${MATCH_USERS[u]}</span>`).join('')+'</div>' : '';
-  const deadline = m.ko ? `giờ bóng lăn ${koTime(m)}` : '22:00 GMT+7';
   const cd = m.ko ? `<span class="vote-cd" data-ko="${m.ko}"></span>` : '';
-  const note = `<div class="locked-note">🕓 Mở vote đến ${deadline} · <b>${m.vote_count}/${allUsers.length}</b> đã vote · ⚠️ không vote = phạt 50${cd}</div>`;
+  const note = `<div class="locked-note"><b>${m.vote_count}/${allUsers.length}</b> đã vote · ⚠️ không vote = phạt 50${cd}</div>`;
   return `<div class="card match" data-mid="${m.id}">
     <div class="meta">${chips}</div>
     <div class="vs">
