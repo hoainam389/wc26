@@ -228,6 +228,52 @@
     #history td.pc{min-width:0}
     #history .htable td.dt{padding-left:6px}
   }
+
+  /* ── Sơ đồ nhánh knockout (định vị tuyệt đối + connector SVG) ── */
+  #bracket-sec{margin-top:6px}
+  .bracket-wrap{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
+    padding:8px 10px 16px;border:1px solid var(--line);border-radius:14px;
+    background:linear-gradient(180deg,#0e1722 0%,#0c1118 100%);touch-action:pan-y}
+  .bracket{position:relative}
+  .bk-svg{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+  .bk-svg path{fill:none;stroke:var(--line);stroke-width:1.6;stroke-linejoin:round}
+  .bk-svg path.hot{stroke:#34d399;stroke-width:2;opacity:.9}
+  .bk-head{font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+    color:var(--gold);text-align:center}
+  .bk-head.abs{position:absolute;top:0}
+  .bk-head.sub3{color:#c98a3a;font-size:9.5px}
+  .bk-m{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:6px 9px;box-shadow:0 2px 8px #0006;box-sizing:border-box}
+  .bk-m.done{border-color:#3a4a5e}
+  /* màu viền theo nhánh: trên = cam, dưới = tím (đặt SAU .done để override cả khi đã có KQ) */
+  .bk-m.half-top{border-color:#fb923c;box-shadow:0 2px 8px #0006,0 0 0 1px #fb923c66}
+  .bk-m.half-bottom{border-color:#a855f7;box-shadow:0 2px 8px #0006,0 0 0 1px #a855f766}
+  .bk-m.champ{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 18px #f5b30133}
+  .bk-no{position:absolute;top:-8px;left:9px;background:var(--bg);font-size:9px;
+    color:var(--mut);padding:0 5px;border-radius:6px;letter-spacing:.04em}
+  .bk-row{display:flex;align-items:center;gap:7px;padding:3px 1px;font-size:13px;line-height:1.15;min-height:22px;transition:opacity .25s,color .25s}
+  .bk-row+.bk-row{border-top:1px dashed var(--line)}
+  .bk-tn{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#cfdcea}
+  .bk-row.win .bk-tn{color:#fbfdff;font-weight:800;text-shadow:0 0 10px #ffffff26}  /* thắng: sáng + đậm */
+  .bk-row.out{opacity:.36}                                                          /* thua: mờ đi */
+  .bk-sc{font-variant-numeric:tabular-nums;font-weight:800;color:#e7eef6;min-width:13px;text-align:right}
+  .bk-row.win .bk-sc{color:#fff}
+  .bk-cup{position:absolute;top:-9px;right:9px;font-size:13px;filter:drop-shadow(0 0 4px #f5b30188)}
+  /* trận diễn ra HÔM NAY: viền glow nhấp nháy nổi bật (giữ màu nhánh) */
+  .bk-m.today{z-index:3;animation:bktoday 1.7s ease-in-out infinite}
+  @keyframes bktoday{
+    0%,100%{box-shadow:0 2px 8px #0006,0 0 7px 1px #ffd24a55}
+    50%{box-shadow:0 2px 9px #0007,0 0 17px 3px #ffd24ad0}
+  }
+  @media(prefers-reduced-motion:reduce){ .bk-m.today{animation:none;box-shadow:0 2px 8px #0006,0 0 12px 2px #ffd24aaa} }
+  .bk-pen{font-size:9px;color:#9aa7b6;text-align:center;padding-top:2px;border-top:1px dashed var(--line);margin-top:1px}
+  .bk-time{font-size:9px;color:var(--mut);text-align:center;padding-top:2px}
+  .bk-nav{display:flex;align-items:center;justify-content:center;gap:16px;margin:2px 0 10px}
+  .bk-arrow{width:40px;height:34px;border:1px solid var(--line);background:var(--panel2);
+    color:var(--txt);font-size:16px;border-radius:9px;display:flex;align-items:center;justify-content:center}
+  .bk-arrow:disabled{opacity:.3}
+  .bk-navlabel{font-weight:800;font-size:14px;color:var(--gold);min-width:150px;text-align:center}
+  .bk-navlabel .ar{color:var(--mut);margin:0 4px}
 </style>
 </head>
 <body>
@@ -297,6 +343,13 @@
     <div id="waiting"></div>
   </div>
 
+  <!-- Bracket (sơ đồ nhánh knockout) -->
+  <div id="bracket-sec" class="hidden">
+    <div class="sec-title">🏆 Sơ đồ nhánh — Vòng knockout</div>
+    <div id="bk-nav" class="bk-nav" style="display:none"></div>
+    <div class="bracket-wrap"><div id="bracket" class="bracket"></div></div>
+  </div>
+
   <!-- History section -->
   <div class="sec-title">📜 Lịch sử trận đã kết thúc</div>
   <div class="datebar" style="margin-bottom:12px">
@@ -364,6 +417,15 @@ const FIXTURES = {
   "2026-06-27": [["Panama","Anh","2026-06-28T04:00"],["Croatia","Ghana","2026-06-28T04:00"],["Colombia","Bồ Đào Nha","2026-06-28T06:30"],["Congo","Uzbekistan","2026-06-28T06:30"],["Algeria","Áo","2026-06-28T09:00"],["Jordan","Argentina","2026-06-28T09:00"]]
 };
 const _pairKey = (a,b)=>[a,b].sort().join('|');
+// Cặp knockout đã đủ 2 đội (ready) → coi như "fixture" của ngày đó để admin ra
+// kèo chấp + T/X. Đội do bracket suy ra; ăn kèo vẫn theo tỷ số hiệp chính (90').
+function koFixtures(date){
+  return (typeof BRACKET!=='undefined' ? BRACKET : [])
+    .filter(m=>m.ready && m.team1 && m.team2 && m.date===date)
+    .map(m=>[m.team1, m.team2, m.ko||null, m.mno, m.round]);   // 4=mno, 5=round (link bracket)
+}
+// Lịch 1 ngày = vòng bảng dựng sẵn (FIXTURES) + cặp knockout đã đủ đội.
+function dayFixtures(date){ return (FIXTURES[date]||[]).concat(koFixtures(date)); }
 // ── Giờ kickoff VN ──
 function koTime(m){ return (m && m.ko) ? m.ko.slice(11,16) : ''; }   // 'HH:MM'
 // Chip giờ: hiện 'HH:MM'; nếu ngày kickoff VN khác match-day thì kèm ngày VN (rạng sáng hôm sau).
@@ -373,10 +435,9 @@ function koChip(m){
   const dnote = (m.date && kd!==m.date) ? ` · ${ddmm(kd)}` : '';
   return `<span class="chip tm">🕐 ${t}${dnote}</span>`;
 }
-// Lấy ko từ FIXTURES cho 1 cặp đội (khi trận chưa được tạo)
+// Lấy ko cho 1 cặp đội (vòng bảng hoặc knockout) khi trận chưa được tạo
 function fixtureKo(date,a,b){
-  const fx = FIXTURES[date]||[];
-  const hit = fx.find(([x,y])=>_pairKey(x,y)===_pairKey(a,b));
+  const hit = dayFixtures(date).find(([x,y])=>_pairKey(x,y)===_pairKey(a,b));
   return hit ? (hit[2]||null) : null;
 }
 const _koSort = m => (m && m.ko) || ((m&&m.date||'')+'T99:99');
@@ -410,13 +471,14 @@ async function boot(){
   showApp();
   $('me-name').textContent = ME.display_name;
   $('me-role').textContent = ME.is_admin ? 'Quản trị' : 'Người chơi';
+  await loadBracket();   // sớm: để các cặp knockout (đã đủ đội) sẵn sàng cho lịch + vote
   if(ME.is_admin){ $('admin').classList.remove('hidden'); setMatchDate(0); }
   await loadDates();
   await loadMatches();
   await loadOverview();
 }
 
-async function refreshAll(){ await loadMatches(); await loadOverview(); if(ME.is_admin) loadAdminList(); }
+async function refreshAll(){ await loadMatches(); await loadOverview(); loadBracket(); if(ME.is_admin) loadAdminList(); }
 
 /* ── Dates ── */
 async function loadDates(){
@@ -424,6 +486,7 @@ async function loadDates(){
   const vd = votableDate();
   const set = new Set(dates);
   Object.keys(FIXTURES).forEach(d=>set.add(d));   // luôn có sẵn các ngày vòng bảng
+  (typeof BRACKET!=='undefined' ? BRACKET : []).forEach(m=>{ if(m.ready && m.date) set.add(m.date); });  // ngày có cặp knockout
   set.add(todayG7()); set.add(vd);
   const arr = [...set].sort();                      // tăng dần theo ngày
   const sel = $('date-sel');
@@ -450,7 +513,7 @@ function renderMatchesHtml(matches){
   const allUsers = Object.keys(MATCH_USERS||{});
   const open = (matches||[]).filter(m=>!m.locked && m.score1==null);   // có kèo, chưa khóa, chưa có KQ
   const created = new Set((matches||[]).map(m=>_pairKey(m.team1,m.team2)));
-  const fixtures = FIXTURES[date] || [];
+  const fixtures = dayFixtures(date);   // vòng bảng + cặp knockout đã đủ đội
   const entries = [];   // {ko, html} — gộp trận đã tạo + cặp theo lịch, rồi xếp theo giờ
 
   // A) Trận đã có kèo: cụm đang mở → vote được; cụm sau → chỉ xem (mở vote ở mốc 22:00 hôm trước)
@@ -549,13 +612,20 @@ function renderWaiting(waiting){
     const noVoters = allUsers.filter(u=>!m.picks[u]);
     const missRow = noVoters.length ? `<div class="voter-row">`+noVoters.map(u=>
         `<span class="av wait">${pickerDot(u)}${HIST_NAMES[u]} ✗</span>`).join('')+`</div>` : '';
+    const penRow = m.mno!=null ? `<div class="wresult" id="wpen-${m.id}" style="margin-top:6px">
+          <span class="muted" style="font-size:12px">Luân lưu (chỉ khi hòa 90'):</span>
+          <input class="wq sc" id="wp1-${m.id}" type="number" min="0" value="${m.pen1??''}" placeholder="-">
+          <span class="wd">-</span>
+          <input class="wq sc" id="wp2-${m.id}" type="number" min="0" value="${m.pen2??''}" placeholder="-">
+        </div>` : '';
     const entry = (ME && ME.is_admin)
       ? `<div class="wresult">
-          <input class="wq sc" id="w1-${m.id}" type="number" placeholder="-">
+          <input class="wq sc" id="w1-${m.id}" type="number" min="0" placeholder="-">
           <span class="wd">-</span>
-          <input class="wq sc" id="w2-${m.id}" type="number" placeholder="-">
+          <input class="wq sc" id="w2-${m.id}" type="number" min="0" placeholder="-">
           <button class="btn sm" onclick="saveResultFull('${m.id}')">Lưu KQ</button>
-        </div>`
+          ${m.round?`<span class="chip" style="background:#3a2d10;color:var(--gold)">${roundLabel(m.round)}</span>`:''}
+        </div>${penRow}`
       : `<div class="wait-note">⏳ Chờ admin nhập kết quả</div>`;
     return `<div class="card match">
       <div class="meta"><span class="chip keo">Kèo: ${favIs1?m.team1:m.team2} −${m.hcap}</span>
@@ -574,9 +644,26 @@ function renderWaiting(waiting){
 function saveResultFull(id){
   const s1=$('w1-'+id).value, s2=$('w2-'+id).value;
   if(s1===''||s2===''){ toast('Cần nhập tỷ số'); return; }
-  api('result',{method:'POST',body:JSON.stringify({id,score1:s1,score2:s2})})
-    .then(()=>{ toast('Đã lưu kết quả ✓'); loadOverview(); loadMatches(); })
+  const body={id,score1:s1,score2:s2};
+  const p1El=$('wp1-'+id);   // trận knockout: có ô luân lưu
+  if(p1El){
+    const p1=p1El.value, p2=$('wp2-'+id).value;
+    if(s1===s2){   // hòa 90' → bắt buộc luân lưu để xác định đội đi tiếp trên cây
+      if(p1===''||p2===''){ toast('Hòa 90\': nhập tỷ số luân lưu để xác định đội đi tiếp'); return; }
+      if(p1===p2){ toast('Luân lưu không thể hòa'); return; }
+    }
+    body.pen1=p1; body.pen2=p2;
+  }
+  api('result',{method:'POST',body:JSON.stringify(body)})
+    .then(()=>{ toast('Đã lưu kết quả ✓'); loadOverview(); loadMatches(); refreshBracketAndSchedule(); })
     .catch(e=>toast(e.message));
+}
+// Sau khi lưu KQ trận knockout: cây tự nhảy đội + cặp vòng sau vừa đủ đội hiện
+// ra ở khu "Nhập kèo theo lịch" / Vote. (Trận vòng bảng thì chỉ vẽ lại cây cho rẻ.)
+async function refreshBracketAndSchedule(){
+  await loadBracket();
+  await loadDates();
+  if(ME && ME.is_admin) renderFixtureEntry();
 }
 
 function vote(mid, pick){
@@ -796,12 +883,18 @@ function editKeoInline(id){
   const el = $('mx-'+id); if(!el) return;
   if(el.innerHTML){ el.innerHTML=''; return; }   // toggle
   const finished = m.score1!=null && m.score2!=null;
+  const penRow = (finished && m.mno!=null) ? `<div class="fxrow" style="border-top:none;padding:2px 0">
+      <span class="muted" style="font-size:12px">Luân lưu (khi hòa 90')</span>
+      <input id="ek-p1-${id}" class="fxnum" type="number" min="0" value="${m.pen1??''}" style="width:52px;text-align:center" placeholder="-">
+      <span class="muted">-</span>
+      <input id="ek-p2-${id}" class="fxnum" type="number" min="0" value="${m.pen2??''}" style="width:52px;text-align:center" placeholder="-">
+    </div>` : '';
   const scoreRow = finished ? `<div class="fxrow" style="border-top:none;padding:2px 0">
       <span class="muted" style="font-size:12px">Tỷ số</span>
       <input id="ek-s1-${id}" class="fxnum" type="number" value="${m.score1}" style="width:52px;text-align:center">
       <span class="muted">-</span>
       <input id="ek-s2-${id}" class="fxnum" type="number" value="${m.score2}" style="width:52px;text-align:center">
-    </div>` : '';
+    </div>`+penRow : '';
   el.innerHTML = `<div style="padding:2px 0 4px">
     ${scoreRow}
     <div class="fxrow" style="border-top:none;padding:2px 0">
@@ -832,10 +925,21 @@ function saveKeoInline(id){
       if(finished){
         const s1=$('ek-s1-'+id).value, s2=$('ek-s2-'+id).value;
         if(s1===''||s2===''){ toast('Cần tỷ số'); return; }
-        await api('result',{method:'POST',body:JSON.stringify({id,score1:s1,score2:s2})});  // cập nhật tỷ số
+        const rb={id,score1:s1,score2:s2};
+        const p1El=$('ek-p1-'+id);   // trận knockout: luân lưu
+        if(p1El){
+          const p1=p1El.value, p2=$('ek-p2-'+id).value;
+          if(s1===s2){
+            if(p1===''||p2===''){ toast('Hòa 90\': nhập luân lưu'); return; }
+            if(p1===p2){ toast('Luân lưu không thể hòa'); return; }
+          }
+          rb.pen1=p1; rb.pen2=p2;
+        }
+        await api('result',{method:'POST',body:JSON.stringify(rb)});  // cập nhật tỷ số (+ luân lưu)
       }
       toast('Đã sửa'); closeMx(id);
       loadAdminList().then(renderFixtureEntry); loadMatches(); loadOverview();
+      if(m.mno!=null) loadBracket();   // KO: cây tự nhảy đội
     }catch(e){ toast(e.message); }
   })();
 }
@@ -876,31 +980,33 @@ async function loadAdminList(){
 async function renderFixtureEntry(){
   const box = $('fx-entry'); if(!box) return;
   const date = $('m-date').value;
-  const fx = FIXTURES[date] || [];
+  const fx = dayFixtures(date);   // vòng bảng + cặp knockout đã đủ đội
   if(!fx.length){
-    box.innerHTML = '<div class="muted" style="font-size:13px;margin-top:8px">Ngày này không có lịch vòng bảng dựng sẵn (vd ngày nghỉ / vòng knockout). Knockout sẽ được bổ sung khi tới vòng đó.</div>';
+    box.innerHTML = '<div class="muted" style="font-size:13px;margin-top:8px">Ngày này chưa có lịch (vd ngày nghỉ, hoặc cặp knockout chưa đủ đội). Cặp knockout sẽ tự hiện ở đây khi vòng trước có kết quả.</div>';
     return;
   }
   let existing = [];
   try{ existing = (await api('matches?date='+encodeURIComponent(date))).matches || []; }catch(e){}
   const created = new Set(existing.map(m=>_pairKey(m.team1,m.team2)));
-  box.innerHTML = fx.map(([a,b,ko],i)=>{
+  box.innerHTML = fx.map(([a,b,ko,mno,round],i)=>{
     const tchip = ko ? `<span class="chip tm">🕐 ${ko.slice(11,16)}${ko.slice(0,10)!==date?` · ${ddmm(ko.slice(0,10))}`:''}</span>` : '';
+    const rchip = round ? `<span class="chip" style="background:#3a2d10;color:var(--gold)">${roundLabel(round)}</span>` : '';
     if(created.has(_pairKey(a,b)))
-      return `<div class="fxrow done"><span class="fxpair">${a} <span class="muted">vs</span> ${b}</span>${tchip}<span class="muted">✓ đã tạo</span></div>`;
+      return `<div class="fxrow done"><span class="fxpair">${rchip}${a} <span class="muted">vs</span> ${b}</span>${tchip}<span class="muted">✓ đã tạo</span></div>`;
     return `<div class="fxrow" id="fx-${i}">
-      <span class="fxpair">${a} <span class="muted">vs</span> ${b}</span>${tchip}
+      <span class="fxpair">${rchip}${a} <span class="muted">vs</span> ${b}</span>${tchip}
       <select id="fxside-${i}" title="đội chấp"><option value="1">${a} chấp</option><option value="2">${b} chấp</option></select>
       <input id="fxhcap-${i}" class="fxnum" type="number" step="0.25" placeholder="mức chấp">
       <input id="fxou-${i}" class="fxnum" type="number" step="0.25" placeholder="T/X">
-      <button class="btn sm" onclick='createFromFixture(${i}, ${JSON.stringify(a)}, ${JSON.stringify(b)}, ${JSON.stringify(date)})'>Tạo</button>
+      <button class="btn sm" onclick='createFromFixture(${i}, ${JSON.stringify(a)}, ${JSON.stringify(b)}, ${JSON.stringify(date)}, ${mno??'null'}, ${JSON.stringify(round||null)})'>Tạo</button>
     </div>`;
   }).join('');
 }
-function createFromFixture(i, a, b, date){
+function createFromFixture(i, a, b, date, mno, round){
   const hcap = $('fxhcap-'+i).value;
   if(hcap===''){ toast('Cần nhập mức chấp'); return; }
   const body = { date, team1:a, team2:b, hcap_side:$('fxside-'+i).value, hcap, ou_line:$('fxou-'+i).value, ko: fixtureKo(date,a,b) };
+  if(mno!=null){ body.mno = mno; body.round = round; }   // trận knockout → link sơ đồ nhánh
   api('match',{method:'POST',body:JSON.stringify(body)}).then(()=>{
     toast('Đã tạo '+a+' vs '+b);
     loadDates().then(()=>{ $('date-sel').value=date; loadMatches(); });
@@ -911,6 +1017,244 @@ function createFromFixture(i, a, b, date){
 
 /* hook: admin đổi ngày → làm mới khu lịch + danh sách trận */
 $('m-date').addEventListener('change', onAdminDate);
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Sơ đồ nhánh knockout (định vị tuyệt đối theo "line" + connector SVG)
+   Dữ liệu: GET /api/wc26/bracket → [{mno,round,team1,team2,score1,score2,
+   pen1,pen2,winner,ready,ko,date}]. Đội vòng sau backend tự suy từ đội thắng.
+   ════════════════════════════════════════════════════════════════════════════ */
+const ROUND_SEQ = ['R32','R16','QF','SF','F'];
+// Thứ tự dọc các trận trong mỗi vòng (theo nhánh chính thức → feeder thẳng hàng)
+const BK_ORDER = {
+  R32:[74,77,73,75,83,84,81,82,76,78,79,80,86,88,85,87],
+  R16:[89,90,93,94,91,92,95,96],
+  QF:[97,98,99,100], SF:[101,102], F:[104]
+};
+// 2 trận feeder của mỗi trận vòng sau (trận thắng → trận này)
+const FEED = {89:[74,77],90:[73,75],91:[76,78],92:[79,80],93:[83,84],94:[81,82],95:[86,88],96:[85,87],
+  97:[89,90],98:[93,94],99:[91,92],100:[95,96],101:[97,98],102:[99,100],104:[101,102]};
+const BK_HEAD = {R32:'1/16',R16:'1/8',QF:'Tứ kết',SF:'Bán kết',F:'Chung kết','3RD':'Tranh hạng 3'};
+const ROUND_OF = {}; ROUND_SEQ.forEach(r=>BK_ORDER[r].forEach(no=>ROUND_OF[no]=r)); ROUND_OF[103]='3RD';
+const BOX_H = 27;   // điểm neo connector = mép trên + BOX_H (giữa 2 hàng tên)
+const BK_REARR_DELAY = 850;   // ms: thả tay xong, chờ ~1s rồi mới sắp lại (rearrange)
+let BRACKET = [], BK_BY = {}, BK_PAIR = 0, BK_MODE = 'compact', BK_RT = null, BK_TODAY = '';
+let BK_DRAG_BOUND = false, BK_RESIZE_BOUND = false;
+// Phân nhánh trên/dưới (để tô màu viền): nhánh trên dẫn tới bán kết T101, dưới tới T102
+const BK_HALF = {};
+[73,74,75,77,81,82,83,84,89,90,93,94,97,98,101].forEach(n=>BK_HALF[n]='top');
+[76,78,79,80,85,86,87,88,91,92,95,96,99,100,102].forEach(n=>BK_HALF[n]='bottom');
+function roundLabel(r){ return {R32:'Vòng 1/16',R16:'Vòng 1/8',QF:'Tứ kết',SF:'Bán kết','3RD':'Tranh hạng 3',F:'Chung kết'}[r]||''; }
+function roundChip(m){ return m && m.round ? `<span class="chip" style="background:#3a2d10;color:var(--gold)">${roundLabel(m.round)}</span>` : ''; }
+
+async function loadBracket(){
+  let data; try{ data = await api('bracket'); }catch(e){ return; }
+  BRACKET = data.matches || [];
+  $('bracket-sec').classList.toggle('hidden', BRACKET.length===0);
+  if(BRACKET.length){ renderBracket(); }
+}
+function bkRow(team, sc, isWin, ready, done){
+  const cls = done ? (isWin?'win':'out') : '';
+  const tn = (ready && team) ? team : '';   // chưa có đội → để trống
+  return `<div class="bk-row ${cls}"><span class="bk-tn">${tn}</span><span class="bk-sc">${sc!=null?sc:''}</span></div>`;
+}
+function bkMatchHtml(m, style, idmno){
+  if(!m) return '';
+  const done = m.score1!=null && m.score2!=null;
+  const w1 = done && m.winner===m.team1, w2 = done && m.winner===m.team2;
+  const champ = m.mno===104 && m.winner;
+  const half = BK_HALF[m.mno] ? ('half-'+BK_HALF[m.mno]) : '';
+  const today = (m.date && m.date===BK_TODAY) ? 'today' : '';   // trận thuộc cụm hôm nay
+  const pen = (m.pen1!=null&&m.pen2!=null) ? `<div class="bk-pen">luân lưu ${m.pen1}-${m.pen2}</div>` : '';
+  const time = (!done && m.ko) ? `<div class="bk-time">${ddmm(m.ko.slice(0,10))} · ${m.ko.slice(11,16)}</div>` : '';
+  const idattr = idmno!=null ? ` id="bm-${idmno}" data-rd="${ROUND_OF[idmno]}"` : '';
+  return `<div class="bk-m ${done?'done':''} ${champ?'champ':''} ${half} ${today}"${idattr} style="${style||''}">
+    ${champ?'<span class="bk-cup">🏆</span>':''}
+    ${bkRow(m.team1,m.score1,w1,m.ready,done)}
+    ${bkRow(m.team2,m.score2,w2,m.ready,done)}
+    ${pen}${time}
+  </div>`;
+}
+// đường nối hình ngoặc từ feeder (fx,fy) vòng qua giữa rồi vào trận sau (cx,cy)
+function bkPath(fx,fy,cx,cy,hot){
+  const midx = (fx+cx)/2;
+  return `<path class="${hot?'hot':''}" d="M${fx} ${fy} H${midx} V${cy} H${cx}"/>`;
+}
+function isMobileBk(){ return window.matchMedia('(max-width:560px)').matches; }
+function renderBracket(){
+  const by = {}; BRACKET.forEach(m=>by[m.mno]=m); BK_BY = by;
+  BK_TODAY = votableDate();   // "hôm nay" = cụm đang diễn ra
+  const maxPair = ROUND_SEQ.length-2;
+  if(BK_PAIR>maxPair) BK_PAIR = maxPair;
+  if(isMobileBk()) renderBracketMobile(by);
+  else { $('bk-nav').style.display='none'; renderBracketDesktop(by); }
+  bindBkResize();
+}
+// DESKTOP: full cây 5 cột, line toàn cục (trận sau = trung điểm 2 feeder)
+function renderBracketDesktop(by){
+  const COLW=156, GAP=48, LINE_H=82, HEAD_H=30;
+  const colX = r => ROUND_SEQ.indexOf(r)*(COLW+GAP);
+  const line = {}; BK_ORDER.R32.forEach((no,i)=>line[no]=i);
+  ['R16','QF','SF','F'].forEach(r=>BK_ORDER[r].forEach(no=>{ const[a,b]=FEED[no]; line[no]=(line[a]+line[b])/2; }));
+  line[103] = line[104]+2;   // tranh hạng 3 dưới chung kết
+  const yOf = no => line[no]*LINE_H + HEAD_H;
+  const W = ROUND_SEQ.length*(COLW+GAP)-GAP, H = 16*LINE_H + HEAD_H + 6;
+  let boxes='', heads='', paths='';
+  ROUND_SEQ.forEach(r=>{
+    heads += `<div class="bk-head abs" style="left:${colX(r)}px;width:${COLW}px">${BK_HEAD[r]}</div>`;
+    BK_ORDER[r].forEach(no=> boxes += bkMatchHtml(by[no], `left:${colX(r)}px;top:${yOf(no)}px;width:${COLW}px`));
+  });
+  if(by[103]){
+    heads += `<div class="bk-head abs sub3" style="left:${colX('F')}px;width:${COLW}px;top:${yOf(103)-20}px">Tranh hạng 3</div>`;
+    boxes += bkMatchHtml(by[103], `left:${colX('F')}px;top:${yOf(103)}px;width:${COLW}px`);
+  }
+  ['R16','QF','SF','F'].forEach(r=>BK_ORDER[r].forEach(no=>{
+    const [a,b]=FEED[no], cx=colX(r), cy=yOf(no)+BOX_H;
+    [a,b].forEach(f=>{ const fx=colX(ROUND_OF[f])+COLW, fy=yOf(f)+BOX_H;
+      paths += bkPath(fx,fy,cx,cy, by[f] && by[f].winner && by[no] && by[no].ready); });
+  }));
+  paintBracket(W,H,heads,paths,boxes);
+}
+function paintBracket(W,H,heads,paths,boxes){
+  const bk=$('bracket'), wrap=document.querySelector('#bracket-sec .bracket-wrap');
+  bk.style.width=W+'px'; bk.style.height=H+'px'; bk.style.transform='none'; bk.style.transition='none';
+  bk.innerHTML = `<svg class="bk-svg" width="${W}" height="${H}">${paths}</svg>` + (heads||'') + boxes;
+  if(wrap){ wrap.style.overflowX='auto'; wrap.style.touchAction=''; }
+}
+
+/* ===== MOBILE: carousel kéo theo tay; thả → ~1s → rearrange compact ===== */
+const ALL_CHILDREN = [...BK_ORDER.R16, ...BK_ORDER.QF, ...BK_ORDER.SF, ...BK_ORDER.F]; // trận có feeder
+function colIndexOf(round){ return ROUND_SEQ.indexOf(round==='3RD'?'F':round); }
+function globalLines(){
+  const line={}; BK_ORDER.R32.forEach((no,i)=>line[no]=i);
+  ['R16','QF','SF','F'].forEach(r=>BK_ORDER[r].forEach(no=>{ const[a,b]=FEED[no]; line[no]=(line[a]+line[b])/2; }));
+  line[103]=line[104]+2; return line;
+}
+function mobConf(){
+  const wrap=document.querySelector('#bracket-sec .bracket-wrap');
+  const cs=getComputedStyle(wrap);
+  const inner=wrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2;
+  const GAP=Math.min(50, inner*0.15), COLW=(inner-GAP)/2;
+  return {wrap, inner, GAP, COLW, step:COLW+GAP, LINE_H:82, PAD:16};
+}
+// build dải đầy đủ (mọi cột) 1 lần; vị trí dọc do applyCompact/applyGlobal điều khiển
+function renderBracketMobile(by){
+  const c=mobConf(); c.wrap.style.overflowX='hidden'; c.wrap.style.touchAction='pan-y';
+  const bk=$('bracket'); bk.style.width=(5*c.step)+'px';
+  let boxes='';
+  [...BK_ORDER.R32,...BK_ORDER.R16,...BK_ORDER.QF,...BK_ORDER.SF,...BK_ORDER.F,103].forEach(no=>{
+    if(!by[no]) return;
+    boxes += bkMatchHtml(by[no], `left:${colIndexOf(ROUND_OF[no])*c.step}px;width:${c.COLW}px`, no);
+  });
+  bk.innerHTML = `<svg class="bk-svg" id="bk-svg"></svg>` + boxes;
+  applyCompact(BK_PAIR, false);
+  bindBkDrag(); updateBkNav();
+}
+function setTops(map, c, animate){
+  for(const no in map){ const el=document.getElementById('bm-'+no); if(!el) continue;
+    el.style.transition = animate ? 'top .45s cubic-bezier(.4,0,.2,1)' : 'none';
+    el.style.top = (map[no]*c.LINE_H + c.PAD) + 'px';
+  }
+}
+function showCols(vis){
+  document.querySelectorAll('#bracket .bk-m').forEach(el=>{ el.style.display = vis.has(el.dataset.rd)?'':'none'; });
+}
+function drawConns(line, children, c, W, H){
+  let paths='';
+  children.forEach(no=>{
+    if(!BK_BY[no] || line[no]==null) return;
+    const cx=colIndexOf(ROUND_OF[no])*c.step, cy=line[no]*c.LINE_H+c.PAD+BOX_H;
+    FEED[no].forEach(f=>{ if(line[f]==null || !BK_BY[f]) return;
+      const fx=colIndexOf(ROUND_OF[f])*c.step+c.COLW, fy=line[f]*c.LINE_H+c.PAD+BOX_H;
+      paths += bkPath(fx,fy,cx,cy, BK_BY[f].winner && BK_BY[no].ready);
+    });
+  });
+  const svg=document.getElementById('bk-svg'); if(!svg) return;
+  svg.setAttribute('width',W); svg.setAttribute('height',H); svg.innerHTML=paths;
+}
+// GLOBAL: mọi cột theo line toàn cục (cây đầy đủ) — dùng khi đang kéo
+function applyGlobal(animate){
+  const c=mobConf(), gl=globalLines(), W=5*c.step, H=16*c.LINE_H+c.PAD+8;
+  $('bracket').style.height=H+'px';
+  showCols(new Set(['R32','R16','QF','SF','F','3RD']));
+  setTops(gl, c, animate);
+  drawConns(gl, ALL_CHILDREN, c, W, H);
+  BK_MODE='global';
+}
+// COMPACT: chỉ 2 cột của cặp P, trái = line nguyên, phải = giữa cặp
+function applyCompact(P, animate){
+  const c=mobConf(), rL=ROUND_SEQ[P], rR=ROUND_SEQ[P+1], L=BK_ORDER[rL], R=BK_ORDER[rR];
+  const tops={}; L.forEach((no,i)=>tops[no]=i); R.forEach((no,j)=>tops[no]=2*j+0.5);
+  const vis=new Set([rL,rR]); let maxL=L.length-1;
+  R.forEach((no,j)=>maxL=Math.max(maxL,2*j+0.5));
+  if(rR==='F' && BK_BY[103]){ vis.add('3RD'); tops[103]=maxL+1.4; maxL=tops[103]; }
+  const W=5*c.step, H=(maxL+1)*c.LINE_H+c.PAD+8;
+  $('bracket').style.height=H+'px';
+  showCols(vis); setTops(tops, c, animate);
+  drawConns(tops, R.filter(no=>FEED[no]), c, W, H);
+  const bk=$('bracket'); bk.style.transition='transform .3s ease'; bk.style.transform=`translateX(${-P*c.step}px)`;
+  BK_MODE='compact'; BK_PAIR=P;
+}
+function updateBkNav(){
+  const maxPair=ROUND_SEQ.length-2, rL=ROUND_SEQ[BK_PAIR], rR=ROUND_SEQ[BK_PAIR+1];
+  const nav=$('bk-nav'); nav.style.display='flex';
+  nav.innerHTML =
+    `<button class="bk-arrow" ${BK_PAIR<=0?'disabled':''} onclick="bkPair(-1)">◀</button>`+
+    `<span class="bk-navlabel">${BK_HEAD[rL]} <span class="ar">→</span> ${BK_HEAD[rR]}</span>`+
+    `<button class="bk-arrow" ${BK_PAIR>=maxPair?'disabled':''} onclick="bkPair(1)">▶</button>`;
+}
+function goToPair(Q){          // dùng cho nút ◀ ▶: giãn ra (global) → trượt → rearrange
+  const c=mobConf();
+  if(BK_MODE!=='global') applyGlobal(false);
+  BK_PAIR=Q; updateBkNav();
+  const bk=$('bracket'); bk.style.transition='transform .35s ease'; bk.style.transform=`translateX(${-Q*c.step}px)`;
+  clearTimeout(BK_RT); BK_RT=setTimeout(()=>applyCompact(Q,true), BK_REARR_DELAY);
+}
+function bkPair(d){
+  const maxPair=ROUND_SEQ.length-2, Q=Math.max(0,Math.min(maxPair,BK_PAIR+d));
+  if(Q!==BK_PAIR) goToPair(Q);
+}
+function bindBkDrag(){
+  if(BK_DRAG_BOUND) return; BK_DRAG_BOUND=true;
+  const wrap=document.querySelector('#bracket-sec .bracket-wrap'); if(!wrap) return;
+  let x0=null,y0=null,axis=null,baseTX=0,drag=false;
+  wrap.addEventListener('touchstart',e=>{
+    if(!isMobileBk()){ x0=null; return; }
+    const t=e.touches[0]; x0=t.clientX; y0=t.clientY; axis=null; drag=false;
+    baseTX=-BK_PAIR*mobConf().step; clearTimeout(BK_RT);
+  },{passive:true});
+  wrap.addEventListener('touchmove',e=>{
+    if(x0==null) return;
+    const t=e.touches[0], dx=t.clientX-x0, dy=t.clientY-y0;
+    if(axis===null && (Math.abs(dx)>8||Math.abs(dy)>8)) axis=Math.abs(dx)>Math.abs(dy)?'h':'v';
+    if(axis!=='h') return;          // dọc → để trang tự cuộn
+    e.preventDefault();
+    if(!drag){ drag=true; if(BK_MODE!=='global') applyGlobal(false); }
+    const c=mobConf(), maxTX=0, minTX=-(ROUND_SEQ.length-2)*c.step;
+    let tx=baseTX+dx;
+    if(tx>maxTX) tx=maxTX+(tx-maxTX)*0.35;        // rubber 2 đầu
+    if(tx<minTX) tx=minTX+(tx-minTX)*0.35;
+    const bk=$('bracket'); bk.style.transition='none'; bk.style.transform=`translateX(${tx}px)`;
+  },{passive:false});
+  wrap.addEventListener('touchend',e=>{
+    if(x0==null) return; const t=e.changedTouches[0], dx=t.clientX-x0; const wasDrag=drag; x0=null;
+    if(!wasDrag) return;
+    const c=mobConf(), maxPair=ROUND_SEQ.length-2, TH=Math.min(70, c.step*0.25);
+    let Q=BK_PAIR;
+    if(dx<=-TH && BK_PAIR<maxPair) Q=BK_PAIR+1;
+    else if(dx>=TH && BK_PAIR>0) Q=BK_PAIR-1;
+    BK_PAIR=Q; updateBkNav();
+    const bk=$('bracket'); bk.style.transition='transform .3s ease'; bk.style.transform=`translateX(${-Q*c.step}px)`;
+    clearTimeout(BK_RT); BK_RT=setTimeout(()=>applyCompact(Q,true), BK_REARR_DELAY);   // ~1s rồi rearrange
+  },{passive:true});
+}
+function bindBkResize(){
+  if(BK_RESIZE_BOUND) return; BK_RESIZE_BOUND=true;
+  let rt; window.addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(()=>{ if(BRACKET.length) renderBracket(); },180); });
+}
+
+/* Nhập kết quả knockout đã GỘP vào luồng betting theo ngày (saveResultFull):
+   admin nhập tỷ số 90' (+ luân lưu khi hòa) ở "Đang chờ kết quả" → vừa ăn kèo
+   vừa tự đẩy sang cây (backend sync theo mno). Cây ở đây chỉ hiển thị. */
 
 /* ── start ── */
 boot();

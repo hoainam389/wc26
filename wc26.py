@@ -37,6 +37,7 @@ VOTE_DEADLINE_HOUR = 22  # votes for a match's date lock at 22:00 GMT+7
 
 # Logical store names → Redis keys "wc26:<name>".
 USERS, MATCHES, VOTES, SESSIONS = "users", "matches", "votes", "sessions"
+BRACKET = "bracket"  # sơ đồ nhánh knockout (mno 73–104)
 
 
 def _load_dotenv():
@@ -106,6 +107,100 @@ def _ko_key(m: dict):
     sort after timed matches of the same day, then by id for stability.
     """
     return (m.get("ko") or (m.get("date", "") + "T99:99"), m.get("id", ""))
+
+
+# ── Sơ đồ nhánh knockout ──────────────────────────────────────────────────────
+# Cây 32 trận: R32 (73–88) đã biết đội; các vòng sau (89–104) suy ra từ đội
+# THẮNG của 2 trận "feeder". Trận tranh hạng 3 (103) lấy 2 đội THUA bán kết.
+# Khác vòng bảng: knockout KHÔNG có kèo chấp — hơn tỷ số là thắng; hòa thì so
+# luân lưu (pen1/pen2). Bracket độc lập với engine tiền/điểm của vòng bảng.
+KO_FEED = {
+    89: [74, 77], 90: [73, 75], 91: [76, 78], 92: [79, 80],
+    93: [83, 84], 94: [81, 82], 95: [86, 88], 96: [85, 87],
+    97: [89, 90], 98: [93, 94], 99: [91, 92], 100: [95, 96],
+    101: [97, 98], 102: [99, 100], 104: [101, 102],
+}
+KO_THIRD_FEED = (101, 102)  # 103 (tranh hạng 3) = đội THUA của 2 bán kết
+# Thứ tự điền: vòng trước xong mới suy ra được vòng sau.
+KO_FILL_ORDER = [89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104]
+
+
+def _ko_winner_side(m: dict):
+    """Bên thắng 1 trận knockout: 1 | 2 | None (chưa đủ dữ liệu / hòa cả luân lưu)."""
+    s1, s2 = m.get("score1"), m.get("score2")
+    if s1 is None or s2 is None:
+        return None
+    if s1 > s2:
+        return 1
+    if s2 > s1:
+        return 2
+    p1, p2 = m.get("pen1"), m.get("pen2")  # hòa → so luân lưu
+    if p1 is not None and p2 is not None:
+        if p1 > p2:
+            return 1
+        if p2 > p1:
+            return 2
+    return None
+
+
+def _ko_winner_name(m: dict):
+    side = _ko_winner_side(m)
+    return (m.get("team1") if side == 1 else m.get("team2") if side == 2 else None) or None
+
+
+def _ko_loser_name(m: dict):
+    side = _ko_winner_side(m)
+    return (m.get("team2") if side == 1 else m.get("team1") if side == 2 else None) or None
+
+
+def _bracket() -> list:
+    """Cây thô trong KV (chỉ R32 + kết quả đã nhập); rỗng nếu chưa seed.
+
+    Khung ban đầu nằm ở wc26_data/bracket.json, đẩy lên KV bằng seed_redis.py
+    (như users/matches/votes). Runtime CHỈ đọc KV — không đọc file, nhất quán
+    với nguyên tắc KV-only của app.
+    """
+    return _load(BRACKET, [])
+
+
+def _push_result_to_bracket(mno: int, s1, s2, p1, p2):
+    """Đồng bộ kết quả 1 trận (từ luồng betting) vào ô tương ứng trong cây."""
+    stored = _bracket()
+    bm = next((x for x in stored if x.get("mno") == mno), None)
+    if not bm:
+        return
+    bm["score1"], bm["score2"] = s1, s2
+    bm["pen1"], bm["pen2"] = p1, p2
+    _save(BRACKET, stored)
+
+
+def _compute_bracket(stored: list) -> list:
+    """Suy ra đội + 'ready' + winner cho mọi vòng từ R32 + các kết quả đã nhập.
+
+    Nguồn sự thật = đội R32 (cố định) + score/pen từng trận. Đội các vòng sau
+    được tính lại mỗi lần đọc nên thắng đâu tự nhảy lên đó, không lưu dư.
+    """
+    by = {m["mno"]: dict(m) for m in stored}
+    for mno in KO_FILL_ORDER:
+        m = by.get(mno)
+        if not m:
+            continue
+        if mno == 103:  # tranh hạng 3: 2 đội thua bán kết
+            a, b = KO_THIRD_FEED
+            t1, t2 = _ko_loser_name(by.get(a, {})), _ko_loser_name(by.get(b, {}))
+        else:
+            a, b = KO_FEED[mno]
+            t1, t2 = _ko_winner_name(by.get(a, {})), _ko_winner_name(by.get(b, {}))
+        m["team1"], m["team2"] = t1 or "", t2 or ""
+        m["ready"] = bool(t1 and t2)
+    out = []
+    for src in stored:  # giữ thứ tự gốc
+        m = by[src["mno"]]
+        m["winner"] = _ko_winner_name(m)
+        if "ready" not in m:  # R32 lấy ready từ file
+            m["ready"] = bool(m.get("team1") and m.get("team2"))
+        out.append(m)
+    return out
 
 
 # ── Auth ────────────────────────────────────────────────────────────────────
@@ -363,6 +458,8 @@ def compute_overview() -> dict:
             "id": m["id"], "date": m.get("date", ""), "ko": m.get("ko"),
             "team1": m["team1"], "team2": m["team2"],
             "hcap_side": m["hcap_side"], "hcap": m["hcap"], "ou_line": m.get("ou_line"),
+            "mno": m.get("mno"), "round": m.get("round"),   # trận knockout → form nhập KQ có ô luân lưu
+            "pen1": m.get("pen1"), "pen2": m.get("pen2"),
             "vote_count": len(vm),
             "picks": vm,  # {username: side} — đã khóa nên lộ
         })
@@ -485,6 +582,8 @@ def wc26_matches(request: Request, date: str = ""):
             "hcap_side": m["hcap_side"], "hcap": m["hcap"],
             "ou_line": m.get("ou_line"),
             "score1": m.get("score1"), "score2": m.get("score2"),
+            "mno": m.get("mno"), "round": m.get("round"),  # link sơ đồ nhánh (nếu là trận knockout)
+            "pen1": m.get("pen1"), "pen2": m.get("pen2"),
             "locked": locked, "my_vote": vm.get(me["username"]),
             "vote_count": len(vm),
             "voters": [u for u in users if u in vm],
@@ -533,6 +632,9 @@ async def wc26_save_match(request: Request):
         "hcap": float(d["hcap"]),
         "ou_line": d.get("ou_line"),
     }
+    if d.get("mno") is not None:  # trận knockout: link với sơ đồ nhánh
+        payload["mno"] = int(d["mno"])
+        payload["round"] = d.get("round")
     if mid:  # edit
         m = next((x for x in matches if x["id"] == mid), None)
         if not m:
@@ -557,10 +659,21 @@ async def wc26_result(request: Request):
     if not m:
         raise HTTPException(404, "Không tìm thấy trận")
     if d.get("score1") in (None, "") or d.get("score2") in (None, ""):
-        m["score1"], m["score2"] = None, None  # clear result
+        m["score1"], m["score2"] = None, None  # xóa KQ
+        m["pen1"], m["pen2"] = None, None       # xóa luôn luân lưu
     else:
         m["score1"], m["score2"] = int(d["score1"]), int(d["score2"])
+        # luân lưu (knockout): chỉ ghi khi request có gửi → tránh xóa nhầm khi
+        # sửa kèo (saveKeoInline gọi /result không kèm pen).
+        if "pen1" in d or "pen2" in d:
+            m["pen1"] = int(d["pen1"]) if d.get("pen1") not in (None, "") else None
+            m["pen2"] = int(d["pen2"]) if d.get("pen2") not in (None, "") else None
     _save(MATCHES, matches)
+    # Trận knockout (có mno) → đẩy tỷ số 90' + luân lưu sang sơ đồ nhánh để
+    # đội tự nhảy lên vòng sau. Tiền/ăn kèo vẫn tính theo tỷ số 90' như cũ.
+    if m.get("mno") is not None:
+        _push_result_to_bracket(m["mno"], m.get("score1"), m.get("score2"),
+                                m.get("pen1"), m.get("pen2"))
     return {"ok": True}
 
 
@@ -579,3 +692,10 @@ def wc26_delete_match(mid: str, request: Request):
 def wc26_overview(request: Request):
     _require(request)
     return compute_overview()
+
+
+# ── Bracket API ───────────────────────────────────────────────────────────────
+@router.get("/api/wc26/bracket")
+def wc26_bracket(request: Request):
+    _require(request)
+    return {"matches": _compute_bracket(_bracket())}
