@@ -349,9 +349,12 @@ def _chemistry(group_size, resulted_picks, names):
     return pack(best), pack(worst)
 
 
-def compute_overview() -> dict:
+def compute_overview(only_ko: bool = False) -> dict:
+    """Tổng hợp thống kê. only_ko=True → chỉ tính các trận knockout (có mno)."""
     users = _users()
     matches = _matches()
+    if only_ko:
+        matches = [m for m in matches if m.get("mno") is not None]
     votes = _votes()
 
     names = {u: users[u].get("display_name", u) for u in users}
@@ -376,6 +379,7 @@ def compute_overview() -> dict:
                 "hcap_side": m["hcap_side"], "hcap": m["hcap"],
                 "score": f'{m["score1"]}-{m["score2"]}',
                 "winner": _keo_winner(m),
+                "mno": m.get("mno"), "round": m.get("round"),
                 "nocount": True,
                 "detail": [{"username": u, "name": names[u], "pick": None,
                             "team": None, "result": "skip", "pnl": None} for u in users],
@@ -423,6 +427,7 @@ def compute_overview() -> dict:
             "hcap_side": m["hcap_side"], "hcap": m["hcap"],
             "score": f'{m["score1"]}-{m["score2"]}',
             "winner": _keo_winner(m),
+            "mno": m.get("mno"), "round": m.get("round"),
             "detail": detail,
         })
 
@@ -704,9 +709,9 @@ def wc26_delete_match(mid: str, request: Request):
 
 
 @router.get("/api/wc26/overview")
-def wc26_overview(request: Request):
+def wc26_overview(request: Request, ko: str = ""):
     _require(request)
-    return compute_overview()
+    return compute_overview(only_ko=(ko == "1"))
 
 
 # ── Bracket API ───────────────────────────────────────────────────────────────

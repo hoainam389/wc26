@@ -274,6 +274,18 @@
   .bk-arrow:disabled{opacity:.3}
   .bk-navlabel{font-weight:800;font-size:14px;color:var(--gold);min-width:150px;text-align:center}
   .bk-navlabel .ar{color:var(--mut);margin:0 4px}
+  /* nhắc chưa vote — dải dính trên cùng, bấm để nhảy tới trận gần khóa nhất */
+  #vote-reminder{position:sticky;top:8px;z-index:40;margin:0 0 14px;cursor:pointer;
+    background:linear-gradient(90deg,#3a2410,#2a1810);border:1px solid #6b4310;
+    color:#ffd9a0;border-radius:12px;padding:11px 14px;font-size:14px;font-weight:600;
+    box-shadow:0 4px 14px #0007;display:flex;align-items:center;gap:8px}
+  #vote-reminder b{color:#fff}
+  #vote-reminder .cd{font-variant-numeric:tabular-nums;color:#ffecb3}
+  .vote-cd{font-variant-numeric:tabular-nums;font-weight:700;margin-left:auto}
+  .vote-cd.soon{color:#ff9a6b}
+  .bk-m.bk-click{cursor:pointer}
+  tr.hl-row,.match.hl-row{animation:hlrow 1.6s ease}
+  @keyframes hlrow{0%,30%{background:#2a3a14}100%{background:transparent}}
 </style>
 </head>
 <body>
@@ -303,6 +315,9 @@
       &nbsp;·&nbsp;<a href="#" onclick="doLogout();return false">Thoát</a>
     </div>
   </div>
+
+  <!-- Nhắc chưa vote + đếm ngược tới giờ khóa gần nhất -->
+  <div id="vote-reminder" class="hidden" onclick="goToFirstUnvoted()"></div>
 
   <!-- Admin panel (nam.nguyen) -->
   <div class="card hidden" id="admin">
@@ -361,6 +376,10 @@
 
   <!-- Overview section -->
   <div class="sec-title">📊 Bảng tổng</div>
+  <div class="datebar" style="margin-bottom:12px">
+    <button class="btn ghost sm scope-btn on" id="ov-all" onclick="setOvScope('all')">🌐 Cả giải</button>
+    <button class="btn ghost sm scope-btn" id="ov-ko" onclick="setOvScope('ko')">🏆 Chỉ knockout</button>
+  </div>
   <div class="card">
     <h3 style="margin-bottom:12px">Bảng xếp hạng</h3>
     <div style="overflow-x:auto"><table id="standings"></table></div>
@@ -409,6 +428,47 @@ function currentMatchDay(){
   Object.entries(FIXTURES).forEach(([d,arr])=>arr.forEach(([a,b,ko])=>consider(d,ko)));
   (typeof BRACKET!=='undefined'?BRACKET:[]).forEach(m=>{ if(m.ready) consider(m.date, m.ko); });
   return best ? best.date : votableDate();
+}
+
+// ── Đếm ngược tới giờ bóng lăn + nhắc chưa vote ──
+function nowVNms(){ return Date.now()+7*3600*1000; }                  // giờ VN dưới dạng ms "wall-clock"
+function koMs(ko){ return ko ? Date.parse(ko+':00Z') : null; }        // ko (giờ VN) → ms cùng hệ
+function fmtHMS(ms){ const s=Math.max(0,Math.floor(ms/1000)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60,p=n=>String(n).padStart(2,'0'); return (h>0?h+':':'')+p(m)+':'+p(x); }
+let VOTE_TICK=null;
+function startVoteTicker(){ if(VOTE_TICK) return; VOTE_TICK=setInterval(tickCountdowns,1000); tickCountdowns(); }
+function tickCountdowns(){
+  const now=nowVNms();
+  document.querySelectorAll('.vote-cd[data-ko]').forEach(el=>{
+    const k=koMs(el.dataset.ko); if(k==null){ el.textContent=''; return; }
+    const r=k-now;
+    el.textContent = r<=0 ? '🔒 đã khóa' : '⏳ còn '+fmtHMS(r);
+    el.classList.toggle('soon', r>0 && r<=15*60*1000);   // <15 phút → đỏ cam
+  });
+  updateVoteReminder(now);
+}
+function updateVoteReminder(now){
+  now = now||nowVNms();
+  const bar=$('vote-reminder'); if(!bar) return;
+  const un=(CUR_MATCHES||[]).filter(m=>m.ko && m.score1==null && m.my_vote==null && koMs(m.ko)>now);
+  if(!un.length){ bar.classList.add('hidden'); bar.innerHTML=''; return; }
+  const soonest=un.reduce((a,m)=>Math.min(a,koMs(m.ko)),Infinity);
+  bar.classList.remove('hidden');
+  bar.innerHTML=`⚠️ Bạn chưa vote <b>${un.length}</b> trận · gần nhất khóa sau <span class="cd">${fmtHMS(soonest-now)}</span> · bấm để tới ▾`;
+}
+function goToFirstUnvoted(){
+  const now=nowVNms();
+  const un=(CUR_MATCHES||[]).filter(m=>m.ko && m.score1==null && m.my_vote==null && koMs(m.ko)>now)
+    .sort((a,b)=>koMs(a.ko)-koMs(b.ko));
+  if(!un.length) return;
+  hlScroll(`.match[data-mid="${un[0].id}"]`);
+}
+// cuộn mượt tới phần tử + nháy sáng
+function hlScroll(sel, toastIfMissing){
+  setTimeout(()=>{
+    const el=document.querySelector(sel);
+    if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.classList.remove('hl-row'); void el.offsetWidth; el.classList.add('hl-row'); }
+    else if(toastIfMissing) toast(toastIfMissing);
+  }, 60);
 }
 
 // Lịch vòng bảng WC2026 — nguồn FIFA, đã đối chiếu khớp data app.
@@ -487,6 +547,7 @@ async function boot(){
   await loadDates();
   await loadMatches();
   await loadOverview();
+  startVoteTicker();   // đếm ngược + nhắc chưa vote
 }
 
 async function refreshAll(){ await loadMatches(); await loadOverview(); loadBracket(); if(ME.is_admin) loadAdminList(); }
@@ -540,13 +601,15 @@ function renderMatchesHtml(matches){
   }
   entries.sort((x,y)=> x.ko<y.ko ? -1 : (x.ko>y.ko ? 1 : 0));   // sớm → muộn theo giờ VN
   const html = entries.map(e=>e.html).join('');
-  if(html){ box.innerHTML = html; return; }
-
-  // C) Không có thẻ nào → thông báo theo ngữ cảnh
-  const msg = (date<cmd)
-    ? 'Ngày này các trận đã qua giờ bóng lăn — xem ở "Chờ kết quả" / "Lịch sử" bên dưới.'
-    : 'Ngày này chưa có trận trong lịch.';
-  box.innerHTML = '<div class="card empty">'+msg+'</div>';
+  if(html){ box.innerHTML = html; }
+  else {
+    // C) Không có thẻ nào → thông báo theo ngữ cảnh
+    const msg = (date<cmd)
+      ? 'Ngày này các trận đã qua giờ bóng lăn — xem ở "Chờ kết quả" / "Lịch sử" bên dưới.'
+      : 'Ngày này chưa có trận trong lịch.';
+    box.innerHTML = '<div class="card empty">'+msg+'</div>';
+  }
+  if(typeof tickCountdowns==='function') tickCountdowns();   // cập nhật đếm ngược + banner ngay
 }
 // Thẻ vote bình thường (hôm nay, đã có kèo). Vote hiện ngay cho mọi người.
 function voteCardHtml(m, allUsers){
@@ -564,7 +627,8 @@ function voteCardHtml(m, allUsers){
   const waitRow = noVoters.length ? '<div class="voter-row">'+noVoters.map(u=>
       `<span class="av wait">${pickerDot(u)}${MATCH_USERS[u]}</span>`).join('')+'</div>' : '';
   const deadline = m.ko ? `giờ bóng lăn ${koTime(m)}` : '22:00 GMT+7';
-  const note = `<div class="locked-note">🕓 Mở vote đến ${deadline} · <b>${m.vote_count}/${allUsers.length}</b> đã vote · ⚠️ không vote = phạt 50</div>`;
+  const cd = m.ko ? `<span class="vote-cd" data-ko="${m.ko}"></span>` : '';
+  const note = `<div class="locked-note">🕓 Mở vote đến ${deadline} · <b>${m.vote_count}/${allUsers.length}</b> đã vote · ⚠️ không vote = phạt 50${cd}</div>`;
   return `<div class="card match" data-mid="${m.id}">
     <div class="meta">${chips}</div>
     <div class="vs">
@@ -612,7 +676,9 @@ function nokeoCardHtml(a,b,date,ko){
 function fmtNum(n){ return Number(n).toLocaleString('vi-VN'); }
 
 /* ── Waiting (đã khóa vote, chờ kết quả) ── */
+let WAITING = [];
 function renderWaiting(waiting){
+  WAITING = waiting || [];
   const sec=$('waiting-sec'), box=$('waiting');
   if(!waiting.length){ sec.classList.add('hidden'); box.innerHTML=''; return; }
   sec.classList.remove('hidden');
@@ -639,7 +705,7 @@ function renderWaiting(waiting){
           ${m.round?`<span class="chip" style="background:#3a2d10;color:var(--gold)">${roundLabel(m.round)}</span>`:''}
         </div>${penRow}`
       : `<div class="wait-note">⏳ Chờ admin nhập kết quả</div>`;
-    return `<div class="card match">
+    return `<div class="card match" data-mno="${m.mno??''}">
       <div class="meta"><span class="chip keo">Kèo: ${favIs1?m.team1:m.team2} −${m.hcap}</span>
         ${m.ou_line!=null?`<span class="chip ou">T/X ${m.ou_line}</span>`:''}
         <span style="margin-left:auto">${m.ko ? koChip(m) : `<span class="chip">${ddmm(m.date)}</span>`}</span></div>
@@ -722,13 +788,21 @@ function markSaving(mid, on, done){
 // 6 màu cố định cho 6 người — KHÔNG dùng xanh lá/đỏ (dành cho thắng/thua & tiền +/−)
 const PERSON_COLORS = ['#0ea5e9','#f5b301','#a855f7','#ec4899','#14b8a6','#f97316'];
 let HIST = [], HIST_NAMES = {}, USER_COLOR = {}, TODAY_TEAMS = new Set(), HIST_SCOPE = 'today';
+let OV_SCOPE = 'all';   // 'all' = cả giải, 'ko' = chỉ knockout
 function setColors(map){
   const ks = Object.keys(map||{}); if(!ks.length) return;
   USER_COLOR = {};
   ks.forEach((u,i)=>{ USER_COLOR[u] = PERSON_COLORS[i%PERSON_COLORS.length]; });
 }
+function setOvScope(s){
+  if(OV_SCOPE===s) return;
+  OV_SCOPE = s;
+  $('ov-all').classList.toggle('on', s==='all');
+  $('ov-ko').classList.toggle('on', s==='ko');
+  loadOverview();
+}
 async function loadOverview(){
-  const ov = await api('overview');
+  const ov = await api('overview'+(OV_SCOPE==='ko'?'?ko=1':''));
   HIST_NAMES = ov.chart.names || {};
   setColors(HIST_NAMES);
   renderStandings(ov.standings);
@@ -802,7 +876,7 @@ function renderHistory(){
       `<b class="hsc">${score}</b>`+
       `<span class="tmw t2"><span class="tm ${t2cls}">${m.team2}</span><span class="hcsub">${sub2}</span></span>`+
       `</div>`;
-    h += `<tr>
+    h += `<tr data-mno="${m.mno??''}">
       <td class="l mt">${matchCell}</td>`+
       cols.map(u=>{
         const d = det[u];
@@ -1079,7 +1153,7 @@ function bkMatchHtml(m, style, idmno){
   const pen = (m.pen1!=null&&m.pen2!=null) ? `<div class="bk-pen">luân lưu ${m.pen1}-${m.pen2}</div>` : '';
   const time = (!done && m.ko) ? `<div class="bk-time">${ddmm(m.ko.slice(0,10))} · ${m.ko.slice(11,16)}</div>` : '';
   const idattr = idmno!=null ? ` id="bm-${idmno}" data-rd="${ROUND_OF[idmno]}"` : '';
-  return `<div class="bk-m ${done?'done':''} ${champ?'champ':''} ${half} ${today}"${idattr} style="${style||''}">
+  return `<div class="bk-m bk-click ${done?'done':''} ${champ?'champ':''} ${half} ${today}"${idattr} data-mno="${m.mno}" style="${style||''}">
     ${champ?'<span class="bk-cup">🏆</span>':''}
     ${bkRow(m.team1,m.score1,w1,m.ready,done)}
     ${bkRow(m.team2,m.score2,w2,m.ready,done)}
@@ -1109,7 +1183,43 @@ function renderBracket(){
   if(BK_PAIR>maxPair) BK_PAIR = maxPair;
   if(isMobileBk()) renderBracketMobile(by);
   else { $('bk-nav').style.display='none'; renderBracketDesktop(by); }
-  bindBkResize();
+  bindBkResize(); bindBracketClick();
+}
+// Bấm 1 ô trên cây → nhảy tới thẻ kèo/kết quả của trận đó (theo trạng thái).
+let BK_CLICK_BOUND=false;
+function bindBracketClick(){
+  if(BK_CLICK_BOUND) return; BK_CLICK_BOUND=true;
+  $('bracket').addEventListener('click', e=>{
+    const box=e.target.closest('.bk-m'); if(!box || !box.dataset.mno) return;
+    jumpFromBracket(parseInt(box.dataset.mno,10));
+  });
+}
+function jumpFromBracket(mno){
+  // 1) đã có KQ → bảng "Lịch sử" (xóa lọc cho chắc dòng hiện)
+  if((HIST||[]).some(m=>m.mno===mno)){
+    HIST_SCOPE='all'; updateScopeBtn();
+    if($('hist-date')) $('hist-date').value='';
+    if($('hist-user')) $('hist-user').value='';
+    renderHistory();
+    hlScroll(`#history tr[data-mno="${mno}"]`, 'Đã có kết quả — kéo xuống Lịch sử');
+    return;
+  }
+  // 2) đã khóa, chờ KQ → khu "Đang chờ kết quả"
+  if((WAITING||[]).some(m=>m.mno===mno)){
+    hlScroll(`#waiting [data-mno="${mno}"]`, 'Đang chờ kết quả');
+    return;
+  }
+  // 3) còn mở vote (hoặc chưa tạo kèo) → set ngày + load rồi cuộn tới thẻ
+  const bm=BK_BY[mno];
+  if(bm && bm.date){
+    const sel=$('date-sel');
+    if(sel && sel.value!==bm.date && [...sel.options].some(o=>o.value===bm.date)){ sel.value=bm.date; }
+    loadMatches().then(()=>{
+      const cm=(CUR_MATCHES||[]).find(x=>x.mno===mno);
+      if(cm) hlScroll(`#matches .match[data-mid="${cm.id}"]`);
+      else toast('Chưa tạo kèo cho trận này');
+    });
+  } else toast('Trận chưa đủ đội');
 }
 // DESKTOP: full cây 5 cột, line toàn cục (trận sau = trung điểm 2 feeder)
 function renderBracketDesktop(by){
