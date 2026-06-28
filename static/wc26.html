@@ -1050,7 +1050,7 @@ const ROUND_OF = {}; ROUND_SEQ.forEach(r=>BK_ORDER[r].forEach(no=>ROUND_OF[no]=r
 const BOX_H = 27;   // điểm neo connector = mép trên + BOX_H (giữa 2 hàng tên)
 const BK_REARR_DELAY = 850;   // ms: thả tay xong, chờ ~1s rồi mới sắp lại (rearrange)
 let BRACKET = [], BK_BY = {}, BK_PAIR = 0, BK_MODE = 'compact', BK_RT = null, BK_TODAY = '';
-let BK_DRAG_BOUND = false, BK_RESIZE_BOUND = false;
+let BK_DRAG_BOUND = false, BK_RESIZE_BOUND = false, BK_PAIR_INIT = false;
 // Phân nhánh trên/dưới (để tô màu viền): nhánh trên dẫn tới bán kết T101, dưới tới T102
 const BK_HALF = {};
 [73,74,75,77,81,82,83,84,89,90,93,94,97,98,101].forEach(n=>BK_HALF[n]='top');
@@ -1092,6 +1092,16 @@ function bkPath(fx,fy,cx,cy,hot){
   return `<path class="${hot?'hot':''}" d="M${fx} ${fy} H${midx} V${cy} H${cx}"/>`;
 }
 function isMobileBk(){ return window.matchMedia('(max-width:560px)').matches; }
+// Cặp mặc định khi mở mobile = vòng SỚM NHẤT còn trận chưa có KQ (vòng đang diễn
+// ra). Tất cả xong → cặp cuối. Set 1 lần/lần mở trang; mày vuốt rồi thì giữ nguyên.
+function currentBkPair(){
+  const maxPair = ROUND_SEQ.length-2;
+  for(let i=0;i<ROUND_SEQ.length;i++){
+    const unfinished = BK_ORDER[ROUND_SEQ[i]].some(no=>{ const m=BK_BY[no]; return m && !(m.score1!=null && m.score2!=null); });
+    if(unfinished) return Math.min(i, maxPair);
+  }
+  return maxPair;
+}
 function renderBracket(){
   const by = {}; BRACKET.forEach(m=>by[m.mno]=m); BK_BY = by;
   BK_TODAY = currentMatchDay();   // highlight = match-day có trận sắp đá gần nhất
@@ -1158,6 +1168,7 @@ function renderBracketMobile(by){
     boxes += bkMatchHtml(by[no], `left:${colIndexOf(ROUND_OF[no])*c.step}px;width:${c.COLW}px`, no);
   });
   bk.innerHTML = `<svg class="bk-svg" id="bk-svg"></svg>` + boxes;
+  if(!BK_PAIR_INIT){ BK_PAIR = currentBkPair(); BK_PAIR_INIT = true; }   // mở thẳng vòng đang diễn ra
   applyCompact(BK_PAIR, false);
   bindBkDrag(); updateBkNav();
 }
