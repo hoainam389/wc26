@@ -451,7 +451,7 @@ def compute_overview() -> dict:
     for m in matches:
         if m.get("score1") is not None and m.get("score2") is not None:
             continue
-        if not _is_locked(m.get("date", "")):
+        if not _match_locked(m):
             continue
         vm = {u: s for u, s in votes.get(m["id"], {}).items() if u in users}
         waiting.append({
@@ -492,13 +492,28 @@ def _keo_winner(m: dict) -> str:
 
 
 # ── Vote lock ────────────────────────────────────────────────────────────────
+# Khóa vote khi tới GIỜ BÓNG LĂN (ko) của từng trận. Trận chưa có ko (chưa gắn
+# giờ) thì tạm dùng mốc cũ 22:00 GMT+7 của match-day làm fallback.
 def _is_locked(date_str: str) -> bool:
+    """Fallback theo mốc 22:00 GMT+7 của match-day (khi trận chưa có giờ ko)."""
     try:
         d = datetime.strptime(date_str, "%Y-%m-%d").replace(
             hour=VOTE_DEADLINE_HOUR, minute=0, tzinfo=GMT7)
     except Exception:
         return False
     return datetime.now(GMT7) >= d
+
+
+def _match_locked(m: dict) -> bool:
+    """Trận đã khóa vote chưa: khóa đúng tại giờ bóng lăn (ko, giờ VN)."""
+    ko = m.get("ko")
+    if ko:
+        try:
+            dt = datetime.strptime(ko, "%Y-%m-%dT%H:%M").replace(tzinfo=GMT7)
+            return datetime.now(GMT7) >= dt
+        except Exception:
+            pass
+    return _is_locked(m.get("date", ""))
 
 
 # ── Page ─────────────────────────────────────────────────────────────────────
@@ -575,7 +590,7 @@ def wc26_matches(request: Request, date: str = ""):
     out = []
     for m in matches:
         vm = {u: s for u, s in votes.get(m["id"], {}).items() if u in users}
-        locked = _is_locked(m.get("date", "")) or (m.get("score1") is not None)
+        locked = _match_locked(m) or (m.get("score1") is not None)
         item = {
             "id": m["id"], "date": m["date"], "ko": m.get("ko"),
             "team1": m["team1"], "team2": m["team2"],
@@ -609,8 +624,8 @@ async def wc26_vote(request: Request):
     match = next((m for m in _matches() if m["id"] == mid), None)
     if not match:
         raise HTTPException(404, "Không tìm thấy trận")
-    if _is_locked(match.get("date", "")) or match.get("score1") is not None:
-        raise HTTPException(403, "Đã khóa vote (qua 22:00 GMT+7 hoặc đã có kết quả)")
+    if _match_locked(match) or match.get("score1") is not None:
+        raise HTTPException(403, "Đã khóa vote (qua giờ bóng lăn hoặc đã có kết quả)")
     votes = _votes()
     votes.setdefault(mid, {})[me["username"]] = pick
     _save(VOTES, votes)

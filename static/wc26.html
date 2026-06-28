@@ -399,6 +399,17 @@ function votableDate(){
   if(base.getUTCHours()>=22) base.setUTCDate(base.getUTCDate()+1);   // 22:00 = chốt cụm cũ, mở cụm mới
   return base.toISOString().slice(0,10);
 }
+// Vote khóa theo GIỜ BÓNG LĂN (ko) từng trận → "ngày hiện tại" = match-day có
+// trận sắp đá gần nhất (ko tương lai sớm nhất). Tự tiến khi các trận đã đá xong.
+function currentMatchDay(){
+  const nowVN = new Date(Date.now()+7*3600*1000).toISOString().slice(0,16);  // 'YYYY-MM-DDTHH:MM' giờ VN
+  let best=null;
+  const consider=(date,ko)=>{ if(!date) return; const t = ko || (date+'T99:99');
+    if(t>=nowVN && (!best || t<best.t)) best={date,t}; };
+  Object.entries(FIXTURES).forEach(([d,arr])=>arr.forEach(([a,b,ko])=>consider(d,ko)));
+  (typeof BRACKET!=='undefined'?BRACKET:[]).forEach(m=>{ if(m.ready) consider(m.date, m.ko); });
+  return best ? best.date : votableDate();
+}
 
 // Lịch vòng bảng WC2026 — nguồn FIFA, đã đối chiếu khớp data app.
 // Mỗi cặp: [đội1, đội2, ko] với ko = giờ kickoff VN (GMT+7) dạng ISO 'YYYY-MM-DDTHH:MM'.
@@ -492,7 +503,8 @@ async function loadDates(){
   const sel = $('date-sel');
   const keep = sel.value;
   sel.innerHTML = arr.map(d=>`<option value="${d}">${ddmm(d)}</option>`).join('');
-  sel.value = (keep && arr.includes(keep)) ? keep : vd;   // mặc định = cụm đang mở vote
+  const def = currentMatchDay();   // mặc định = ngày có trận sắp đá gần nhất
+  sel.value = (keep && arr.includes(keep)) ? keep : (arr.includes(def) ? def : vd);
 }
 
 /* ── Matches / vote ── */
@@ -509,19 +521,19 @@ function pickerDot(u){ return `<span class="udot" style="background:${USER_COLOR
 function renderMatchesHtml(matches){
   const box = $('matches');
   const date = $('date-sel').value;
-  const vd = votableDate();   // cụm đang mở vote (đã tính mốc 22:00)
+  const cmd = currentMatchDay();   // ngày có trận sắp đá gần nhất
   const allUsers = Object.keys(MATCH_USERS||{});
-  const open = (matches||[]).filter(m=>!m.locked && m.score1==null);   // có kèo, chưa khóa, chưa có KQ
+  const open = (matches||[]).filter(m=>!m.locked && m.score1==null);   // có kèo, chưa tới giờ ko, chưa có KQ
   const created = new Set((matches||[]).map(m=>_pairKey(m.team1,m.team2)));
   const fixtures = dayFixtures(date);   // vòng bảng + cặp knockout đã đủ đội
   const entries = [];   // {ko, html} — gộp trận đã tạo + cặp theo lịch, rồi xếp theo giờ
 
-  // A) Trận đã có kèo: cụm đang mở → vote được; cụm sau → chỉ xem (mở vote ở mốc 22:00 hôm trước)
+  // A) Trận đã có kèo & chưa tới giờ bóng lăn → vote được tới sát giờ ko.
   for(const m of open){
-    entries.push({ko:_koSort(m), html:(date===vd) ? voteCardHtml(m, allUsers) : previewCardHtml(m)});
+    entries.push({ko:_koSort(m), html:voteCardHtml(m, allUsers)});
   }
-  // B) Cặp đấu theo lịch nhưng admin CHƯA nhập kèo (cụm đang mở trở đi)
-  if(date>=vd){
+  // B) Cặp đấu theo lịch nhưng admin CHƯA nhập kèo (ngày hiện tại trở đi)
+  if(date>=cmd){
     for(const [a,b,ko] of fixtures){
       if(!created.has(_pairKey(a,b))) entries.push({ko: ko||(date+'T99:99'), html:nokeoCardHtml(a,b,date,ko)});
     }
@@ -531,10 +543,9 @@ function renderMatchesHtml(matches){
   if(html){ box.innerHTML = html; return; }
 
   // C) Không có thẻ nào → thông báo theo ngữ cảnh
-  let msg;
-  if(date<vd) msg = 'Cụm này đã khóa vote (qua 22:00) — trận chờ ở "Chờ kết quả", kết quả ở "Lịch sử" bên dưới.';
-  else if(date>vd) msg = 'Chưa tới lượt vote — cụm này mở khi cụm trước khóa (22:00 hôm trước). Admin có thể nhập kèo trước trong phần Quản lý.';
-  else msg = 'Cụm đang mở chưa có trận trong lịch.';
+  const msg = (date<cmd)
+    ? 'Ngày này các trận đã qua giờ bóng lăn — xem ở "Chờ kết quả" / "Lịch sử" bên dưới.'
+    : 'Ngày này chưa có trận trong lịch.';
   box.innerHTML = '<div class="card empty">'+msg+'</div>';
 }
 // Thẻ vote bình thường (hôm nay, đã có kèo). Vote hiện ngay cho mọi người.
@@ -552,7 +563,8 @@ function voteCardHtml(m, allUsers){
   const noVoters = allUsers.filter(u=>!(m.votes[u]&&m.votes[u].pick));
   const waitRow = noVoters.length ? '<div class="voter-row">'+noVoters.map(u=>
       `<span class="av wait">${pickerDot(u)}${MATCH_USERS[u]}</span>`).join('')+'</div>' : '';
-  const note = `<div class="locked-note">🕓 Mở vote đến 22:00 GMT+7 · <b>${m.vote_count}/${allUsers.length}</b> đã vote · ⚠️ không vote = phạt 50</div>`;
+  const deadline = m.ko ? `giờ bóng lăn ${koTime(m)}` : '22:00 GMT+7';
+  const note = `<div class="locked-note">🕓 Mở vote đến ${deadline} · <b>${m.vote_count}/${allUsers.length}</b> đã vote · ⚠️ không vote = phạt 50</div>`;
   return `<div class="card match" data-mid="${m.id}">
     <div class="meta">${chips}</div>
     <div class="vs">
@@ -668,8 +680,8 @@ async function refreshBracketAndSchedule(){
 
 function vote(mid, pick){
   const m = CUR_MATCHES.find(x=>x.id===mid);
-  if(!m || m.locked) return;
-  if(m.date && m.date!==votableDate()){ toast('Chưa tới lượt vote cụm này'); return; }
+  if(!m) return;
+  if(m.locked){ toast('Trận đã khóa (qua giờ bóng lăn)'); return; }
   const prev = m.my_vote, had = !!prev;
   if(prev===pick){ flashPick(mid,pick); return; }   // re-click same → just pulse
   // ── optimistic: update model + UI instantly (no waiting for network) ──
@@ -1082,7 +1094,7 @@ function bkPath(fx,fy,cx,cy,hot){
 function isMobileBk(){ return window.matchMedia('(max-width:560px)').matches; }
 function renderBracket(){
   const by = {}; BRACKET.forEach(m=>by[m.mno]=m); BK_BY = by;
-  BK_TODAY = votableDate();   // "hôm nay" = cụm đang diễn ra
+  BK_TODAY = currentMatchDay();   // highlight = match-day có trận sắp đá gần nhất
   const maxPair = ROUND_SEQ.length-2;
   if(BK_PAIR>maxPair) BK_PAIR = maxPair;
   if(isMobileBk()) renderBracketMobile(by);
