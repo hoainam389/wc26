@@ -109,6 +109,10 @@
   .wd{color:var(--mut)}
   .wait-note{margin-top:10px;font-size:13px;color:var(--gold);font-weight:600}
   .save-tag{margin-left:8px;font-weight:700;font-size:12px;transition:opacity .5s}
+  .vote-foot{position:relative;margin-top:10px;min-height:22px;display:flex;align-items:center;gap:8px}
+  .vote-foot .vote-cd{margin-left:0}
+  .vote-foot .save-tag{position:absolute;right:0;top:50%;transform:translateY(-50%);margin-left:0}
+  .nokeo-inline{font-size:13px;font-weight:600;color:var(--mut)}
   .save-tag.saving{color:var(--acc2)}
   .save-tag.ok{color:var(--acc)}
   .save-tag.fade{opacity:0}
@@ -288,7 +292,7 @@
   #vote-reminder b{color:#fff}
   #vote-reminder .cd{font-variant-numeric:tabular-nums;color:#ffecb3}
   .meta-time{margin-left:auto}   /* giờ ko căn phải (desktop); mobile sẽ trôi inline */
-  .vote-cd{font-variant-numeric:tabular-nums;font-weight:700;margin-left:auto}
+  .vote-cd{font-variant-numeric:tabular-nums;font-weight:600;font-size:12px;color:var(--mut);margin-left:auto}
   .vote-cd.soon{color:#ff9a6b}
   .bk-m.bk-click{cursor:pointer}
   tr.hl-row,.match.hl-row{animation:hlrow 1.6s ease}
@@ -624,9 +628,9 @@ function voteCardHtml(m, allUsers){
   const hc1 = favIs1 ? '−'+m.hcap : '+'+m.hcap;
   const hc2 = favIs1 ? '+'+m.hcap : '−'+m.hcap;
   const sel1 = m.my_vote===1, sel2 = m.my_vote===2;
-  let chips = `<span class="chip keo">Kèo: ${favIs1?m.team1:m.team2} −${m.hcap}</span>`;
+  let chips = roundChip(m);
+  chips += `<span class="chip keo">Kèo: ${favIs1?m.team1:m.team2} −${m.hcap}</span>`;
   if(m.ou_line!=null && m.ou_line!=='') chips += `<span class="chip ou">T/X ${m.ou_line}</span>`;
-  if(m.ko) chips += `<span class="meta-time">${koChip(m)}</span>`;
   const pickFor = side => allUsers.filter(u=>m.votes[u]&&m.votes[u].pick===side);
   const pickers = side => `<div class="pickers">`+pickFor(side)
       .map(u=>`<span class="pk">${pickerDot(u)}${MATCH_USERS[u]}</span>`).join('')+`</div>`;
@@ -634,7 +638,7 @@ function voteCardHtml(m, allUsers){
   const waitRow = noVoters.length ? '<div class="voter-row">'+noVoters.map(u=>
       `<span class="av wait">${pickerDot(u)}${MATCH_USERS[u]}</span>`).join('')+'</div>' : '';
   const cd = m.ko ? `<span class="vote-cd" data-ko="${m.ko}"></span>` : '';
-  const note = `<div class="locked-note"><b>${m.vote_count}/${allUsers.length}</b> đã vote · ⚠️ không vote = phạt 50${cd}</div>`;
+  const note = `<div class="vote-foot">${koChip(m)}${cd}</div>`;
   return `<div class="card match" data-mid="${m.id}">
     <div class="meta">${chips}</div>
     <div class="vs">
@@ -670,13 +674,12 @@ function previewCardHtml(m){
 function nokeoCardHtml(a,b,date,ko){
   const tail = ko ? koChip({ko, date}) : `<span class="chip">${ddmm(date)}</span>`;
   return `<div class="card match">
-    <div class="meta"><span class="meta-time">${tail}</span></div>
     <div class="vs">
       <div class="pick nokeo"><span class="tn">${a}</span></div>
       <div class="midvs">VS</div>
       <div class="pick nokeo"><span class="tn">${b}</span></div>
     </div>
-    <div class="nokeo-note">⏳ Admin chưa nhập kèo</div>
+    <div class="vote-foot">${tail}<span class="nokeo-inline">⏳ Admin chưa nhập kèo</span></div>
   </div>`;
 }
 function fmtNum(n){ return Number(n).toLocaleString('vi-VN'); }
@@ -785,7 +788,7 @@ function markSaving(mid, on, done){
   const card = document.querySelector(`.match[data-mid="${mid}"]`);
   if(!card) return;
   let tag = card.querySelector('.save-tag');
-  if(!tag){ tag = document.createElement('span'); tag.className='save-tag'; card.querySelector('.locked-note')?.appendChild(tag); }
+  if(!tag){ tag = document.createElement('span'); tag.className='save-tag'; (card.querySelector('.vote-foot')||card.querySelector('.locked-note'))?.appendChild(tag); }
   if(on){ tag.className='save-tag saving'; tag.textContent='⟳ đang ghi nhận…'; }
   else if(done){ tag.className='save-tag ok'; tag.textContent='✓ đã ghi nhận'; setTimeout(()=>{tag.classList.add('fade')},900); }
 }
