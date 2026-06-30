@@ -892,6 +892,8 @@ function renderHistory(){
         if(!d) return '<td class="pc">—</td>';
         // trận cũ (trước khi trò chơi bắt đầu) → không vote, không tính
         if(d.result==='skip') return '<td class="pc"><span class="vt mut">—</span></td>';
+        // chưa vào giải ở thời điểm trận này → mờ "chưa tham gia"
+        if(d.result==='notyet') return '<td class="pc"><span class="vt mut" style="font-size:11px;opacity:.6">chưa tham gia</span></td>';
         // không vote → bị phạt 50, hiện rõ
         if(d.result==='novote'){
           return `<td class="pc"><span class="vt r">✗ ko vote</span><span class="mn r">${fmtNum(d.pnl)}</span></td>`;
