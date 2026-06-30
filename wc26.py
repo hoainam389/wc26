@@ -385,8 +385,11 @@ def compute_overview(only_ko: bool = False) -> dict:
                             "team": None, "result": "skip", "pnl": None} for u in users],
             })
             continue
-        vm = {u: s for u, s in votes.get(m["id"], {}).items() if u in users}
-        pnl = _match_pnl(m, vm, users)
+        # Người chơi vào giữa giải (có 'since') chỉ tính từ trận có date >= since.
+        # Trận trước ngày join → coi như chưa tham gia (không phạt, không tính).
+        elig = {u for u in users if (not users[u].get("since")) or users[u]["since"] <= d}
+        vm = {u: s for u, s in votes.get(m["id"], {}).items() if u in elig}
+        pnl = _match_pnl(m, vm, elig)
         # win_side: đội thắng kèo (1/2) hoặc None nếu hòa kèo
         r1 = ah_result(1, int(m["hcap_side"]), float(m["hcap"]), m["score1"], m["score2"])
         win_side = 1 if r1 > 0 else (2 if r1 < 0 else None)
@@ -396,9 +399,13 @@ def compute_overview(only_ko: bool = False) -> dict:
             totals[u] += p
             by_date[d][u] += p
         # accuracy + per-user detail for history (duyệt tất cả users:
-        # không vote → tính là thua, vẫn phạt 50)
+        # không vote → tính là thua, vẫn phạt 50; chưa vào giải → 'notyet')
         detail = []
         for u in users:
+            if u not in elig:  # chưa vào giải ở thời điểm trận này
+                detail.append({"username": u, "name": names[u], "pick": None,
+                               "team": None, "result": "notyet", "pnl": None})
+                continue
             pick = vm.get(u)
             if pick:
                 r = ah_result(pick, int(m["hcap_side"]), float(m["hcap"]), m["score1"], m["score2"])
@@ -437,6 +444,10 @@ def compute_overview(only_ko: bool = False) -> dict:
     series = {u: [] for u in users}
     for d in dates:
         for u in users:
+            since = users[u].get("since")
+            if since and d < since:  # chưa vào giải → để trống, đường bắt đầu từ ngày join
+                series[u].append(None)
+                continue
             cum[u] += by_date[d].get(u, 0.0)
             series[u].append(round(cum[u], 2))
 

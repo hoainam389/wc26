@@ -32,6 +32,7 @@
   "thanh.bui": {
     "pw_hash": "701aab6e4c0434b2ae7cf94bd85d59eef2cc7cb1ef8f7b5e45f3bdd3bc1428ce",
     "display_name": "Thành",
-    "is_admin": false
+    "is_admin": false,
+    "since": "2026-06-30"
   }
 }
